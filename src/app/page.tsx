@@ -1,6 +1,6 @@
-export const dynamic = "force-dynamic";
-
 import Link from "next/link";
+
+export const dynamic = "force-dynamic";
 
 export default function Home() {
   return (
@@ -19,8 +19,8 @@ export default function Home() {
 
           <p className="text-lg md:text-xl text-gray-300 max-w-3xl mx-auto mb-10">
             Turn your idea into a complete book package with guided prompts,
-            structured writing, cover support, back cover copy, author bio,
-            and downloadable deliverables.
+            structured writing, cover support, back cover copy, author bio, and
+            downloadable deliverables.
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -43,112 +43,32 @@ export default function Home() {
 
       <section className="px-6 py-20 border-b border-gray-800">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold mb-12 text-center">How It Works</h2>
+          <h2 className="text-4xl font-bold mb-12 text-center">
+            Packages
+          </h2>
 
           <div className="grid gap-6 md:grid-cols-3">
-            <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-              <div className="text-3xl font-bold mb-4">01</div>
-              <h3 className="text-2xl font-semibold mb-3">Describe Your Book</h3>
-              <p className="text-gray-300">
-                Tell us your topic, audience, page count, tone, and any specific
-                ideas or requirements you want included.
-              </p>
-            </div>
-
-            <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-              <div className="text-3xl font-bold mb-4">02</div>
-              <h3 className="text-2xl font-semibold mb-3">Choose Your Package</h3>
-              <p className="text-gray-300">
-                Select the plan that fits your project, including long-form and
-                image-supported options where needed.
-              </p>
-            </div>
-
-            <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-              <div className="text-3xl font-bold mb-4">03</div>
-              <h3 className="text-2xl font-semibold mb-3">Receive Your Book</h3>
-              <p className="text-gray-300">
-                Move into the guided creation flow and receive a structured,
-                downloadable book package built around your input.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 py-20 border-b border-gray-800">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold mb-12 text-center">What You Can Create</h2>
-
-          <div className="grid gap-4 md:grid-cols-3">
             {[
-              "Children’s Books",
-              "Self-Help Books",
-              "Nonfiction Guides",
-              "Workbooks",
-              "Fiction & Storytelling",
-              "Authority / Brand Books",
-              "Devotionals",
-              "Long-Form Projects",
-              "Image-Supported Books",
-            ].map((item) => (
+              ["Starter", "$99", "50 pages or less. Core book package without image generation."],
+              ["Enhanced", "$159", "50 pages or less. Includes image generation and visual support."],
+              ["Premium Longform", "$249", "50+ pages with long-form support and image generation where needed."],
+            ].map(([name, price, description]) => (
               <div
-                key={item}
-                className="border border-gray-700 rounded-xl p-5 bg-gray-950 text-center font-medium"
+                key={name}
+                className="border border-gray-700 rounded-2xl p-8 bg-gray-950"
               >
-                {item}
+                <h3 className="text-2xl font-semibold mb-3">{name}</h3>
+                <p className="text-4xl font-bold mb-4">{price}</p>
+                <p className="text-gray-300 mb-6">{description}</p>
+
+                <Link
+                  href="/package-selection"
+                  className="block text-center bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
+                >
+                  Choose {name}
+                </Link>
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="px-6 py-20 border-b border-gray-800">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-4xl font-bold mb-12 text-center">Packages</h2>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-              <h3 className="text-2xl font-semibold mb-3">Starter</h3>
-              <p className="text-4xl font-bold mb-4">$99</p>
-              <p className="text-gray-300 mb-6">
-                50 pages or less. Includes the core book package without image generation.
-              </p>
-              <Link
-                href="/package-selection"
-                className="block text-center bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
-              >
-                Choose Starter
-              </Link>
-            </div>
-
-            <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-              <h3 className="text-2xl font-semibold mb-3">Enhanced</h3>
-              <p className="text-4xl font-bold mb-4">$159</p>
-              <p className="text-gray-300 mb-6">
-                50 pages or less. Includes image generation and added visual support.
-              </p>
-              <Link
-                href="/package-selection"
-                className="block text-center bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
-              >
-                Choose Enhanced
-              </Link>
-            </div>
-
-            <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-              <h3 className="text-2xl font-semibold mb-3">Premium Longform</h3>
-              <p className="text-4xl font-bold mb-4">$249</p>
-              <p className="text-gray-300 mb-6">
-                50+ pages with long-form support and image generation where needed.
-              </p>
-              <Link
-                href="/package-selection"
-                className="block text-center bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition"
-              >
-                Choose Premium
-              </Link>
-            </div>
           </div>
         </div>
       </section>
