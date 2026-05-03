@@ -1,0 +1,12 @@
+export default function HomePage() {
+  return (
+    <main style={{ padding: "40px", color: "white", background: "black", minHeight: "100vh" }}>
+      <h1>WriteNowBooks is Live</h1>
+      <p>Your AI book creation platform is successfully deployed.</p>
+
+      <a href="/dashboard" style={{ display: "block", marginTop: "20px", color: "yellow" }}>
+        Go to Dashboard
+      </a>
+    </main>
+  );
+}
