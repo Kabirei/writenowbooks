@@ -62,14 +62,17 @@ export default function CreateBookPage() {
               </div>
 
               <div>
-                <label className="block mb-2 font-medium">Book Topic / Main Idea</label>
-                <textarea
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Describe the book you want created"
-                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white min-h-[150px]"
-                />
-              </div>
+  <label className="block mb-2 font-medium">Book Title or Main Idea</label>
+  <textarea
+    value={topic}
+    onChange={(e) => setTopic(e.target.value)}
+    placeholder="Enter your book title or describe the book you want created"
+    className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white min-h-[150px]"
+  />
+  <p className="text-sm text-gray-400 mt-2">
+    If you already have a title, enter it here. If not, describe your idea.
+  </p>
+</div>
 
               <div className="grid gap-6 md:grid-cols-2">
                 <div>
@@ -156,7 +159,7 @@ export default function CreateBookPage() {
             <h2 className="text-2xl font-semibold mb-5">What You’ll Provide</h2>
 
             <ul className="space-y-4 text-gray-300 mb-8">
-              <li>• Your book type and topic</li>
+              <li>• Your book title, main idea, and book type</li>
               <li>• Your target page count</li>
               <li>• Tone, audience, and author name</li>
               <li>• Whether image generation is needed</li>

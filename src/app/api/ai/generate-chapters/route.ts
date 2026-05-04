@@ -17,6 +17,51 @@ type ChapterDraft = {
   content: string;
 };
 
+function normalizeChapterContent(content: string) {
+  return content
+    .replace(/\r\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/([.!?])\s+(?=[A-Z])/g, "$1\n\n")
+    .replace(/\n\s+/g, "\n")
+    .trim();
+}
+
+function extractJsonObject(text: string) {
+  const cleaned = text
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+
+  if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+    throw new Error("No JSON object found in AI response.");
+  }
+
+  return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
+}
+
+function cleanAiText(text: string) {
+  return text
+    .replace(/```json/gi, "")
+    .replace(/```/g, "")
+    .trim();
+}
+
+function validateChapter(value: unknown): ChapterDraft {
+  const data = value as Partial<ChapterDraft>;
+
+  const title = typeof data.title === "string" ? data.title.trim() : "";
+  const content = typeof data.content === "string" ? data.content.trim() : "";
+
+  if (!title || !content) {
+    throw new Error("AI chapter response was missing title or content.");
+  }
+
+  return { title, content: normalizeChapterContent(content) };
+}
+
 export async function POST(request: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -48,9 +93,19 @@ export async function POST(request: Request) {
     }
 
     const client = new OpenAI({ apiKey });
+    const generatedChapters: ChapterDraft[] = [];
 
-    const prompt = `
-Create detailed, high-quality chapter draft content for a professional book project.
+    for (const [index, chapterTitle] of chapters.entries()) {
+      const prompt = `
+You are a professional long-form book writer.
+
+Return a complete chapter draft.
+
+Preferred output format:
+{
+  "title": "Chapter title here",
+  "content": "Full chapter content here"
+}
 
 Book Type: ${bookData.bookType || "Not provided"}
 Topic: ${bookData.topic || "Not provided"}
@@ -62,65 +117,59 @@ Images Needed: ${bookData.imagesNeeded || "Not provided"}
 Extra Instructions: ${bookData.extraInstructions || "None"}
 Outline Title: ${outlineTitle}
 
-Chapters:
-${chapters.map((chapter, index) => `${index + 1}. ${chapter}`).join("\n")}
-
-Return ONLY valid JSON in this exact format:
-{
-  "chapters": [
-    {
-      "title": "Chapter title here",
-      "content": "Full chapter content here"
-    }
-  ]
-}
+Write Chapter ${index + 1}: ${chapterTitle}
 
 Rules:
-- Create one chapter for each outline item.
-- Each chapter must be between 800 and 1500 words.
-- Expand ideas deeply with real explanations, not filler text.
-- Use multiple paragraphs for readability.
-- Make it feel like a real authored book, not a summary.
-- Maintain consistency with the tone and target audience.
-- Do NOT include markdown.
-- Do NOT include commentary outside JSON.
+- Write only this one chapter.
+- Keep the title aligned with the outline.
+- Make the chapter detailed, useful, and readable.
+- Use multiple paragraphs.
+- Do not use markdown.
+- Do not use bullet-heavy filler.
+- If returning JSON, escape quotation marks properly.
+- If JSON is not possible, return the chapter text plainly.
 `;
 
-    const response = await client.responses.create({
-      model: "gpt-5.4-mini",
-      input: prompt,
-    });
+      const response = await client.responses.create({
+        model: "gpt-5.4-mini",
+        input: prompt,
+        max_output_tokens: 4000,
+      });
 
-    const text = response.output_text;
+      const text = response.output_text || "";
 
-    let parsed: { chapters: ChapterDraft[] };
+      let validChapter: ChapterDraft;
 
-    try {
-      parsed = JSON.parse(text);
-    } catch {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "AI returned invalid JSON.",
-          raw: text,
-        },
-        { status: 500 }
-      );
-    }
+      try {
+        const parsed = extractJsonObject(text);
+        validChapter = validateChapter(parsed);
+      } catch {
+        const fallbackContent = cleanAiText(text);
 
-    if (!Array.isArray(parsed.chapters)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "AI chapter response was missing chapters.",
-        },
-        { status: 500 }
-      );
+        if (!fallbackContent) {
+          return NextResponse.json(
+            {
+              success: false,
+              message: `AI returned no usable content for chapter ${
+                index + 1
+              }.`,
+            },
+            { status: 500 }
+          );
+        }
+
+        validChapter = {
+          title: chapterTitle,
+          content: normalizeChapterContent(fallbackContent),
+        };
+      }
+
+      generatedChapters.push(validChapter);
     }
 
     return NextResponse.json({
       success: true,
-      chapters: parsed.chapters,
+      chapters: generatedChapters,
     });
   } catch (error) {
     return NextResponse.json(
