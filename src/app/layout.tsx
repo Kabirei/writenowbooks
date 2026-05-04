@@ -93,6 +93,19 @@ export default function RootLayout({
                 Account
               </Link>
             </div>
+
+            {/* ✅ NEW EMAIL CONTACT */}
+            <div className="text-center md:text-right">
+              <p className="text-gray-500 text-xs uppercase tracking-wide mb-1">
+                Contact
+              </p>
+              <a
+                href="mailto:writenowbooks1@gmail.com"
+                className="text-gray-300 hover:text-yellow-400 transition"
+              >
+                writenowbooks1@gmail.com
+              </a>
+            </div>
           </div>
         </footer>
       </body>
