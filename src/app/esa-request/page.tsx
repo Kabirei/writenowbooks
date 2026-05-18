@@ -64,11 +64,65 @@ export default function ESARequestPage() {
     setMessage("");
   };
 
-  const handleSubmit = () => {
-    localStorage.setItem("esaRequest", JSON.stringify(formData));
-    setMessage("ESA request details saved successfully.");
+  const handleSubmit = async () => {
+  try {
+    localStorage.setItem(
+      "esaRequest",
+      JSON.stringify(formData)
+    );
+
+    const response = await fetch(
+      "/api/esa/save-request",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":"application/json",
+        },
+        body: JSON.stringify({
+          parentName: formData.parentName,
+          parentEmail: formData.parentEmail,
+          studentName: formData.studentName,
+          studentGrade: formData.studentGrade,
+          projectIdea: formData.projectIdea,
+          packageChoice: formData.packageChoice,
+          packagePrice: getPackagePrice(),
+        }),
+      }
+    );
+
+    const data =
+      await response.json();
+
+    if (
+      !response.ok ||
+      !data.success
+    ) {
+      throw new Error(
+        data.message ||
+        "Unable to save ESA request."
+      );
+    }
+
+    setMessage(
+      "ESA request saved successfully."
+    );
+
     setStep("summary");
-  };
+
+  } catch(error){
+
+    console.error(
+      "SAVE REQUEST ERROR:",
+      error
+    );
+
+    setMessage(
+      error instanceof Error
+      ? error.message
+      : "Unable to save ESA request."
+    );
+  }
+};
 
   const handlePrepareInvoice = () => {
     const activeInvoiceNumber = ensureInvoiceNumber();

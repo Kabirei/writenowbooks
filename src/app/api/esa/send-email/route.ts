@@ -41,145 +41,143 @@ export async function POST(request: Request) {
       subject: `WriteNowBooks ESA Invoice ${invoiceNumber || ""}`,
       html: `
 <div style="
-max-width:700px;
-margin:auto;
-font-family:Arial,sans-serif;
-background:#111827;
-color:white;
-padding:40px;
-border-radius:18px;
+  max-width:700px;
+  margin:auto;
+  font-family:Arial,sans-serif;
+  background:#ffffff;
+  color:#111111;
+  padding:40px;
+  border-radius:18px;
+  border:1px solid #e5e7eb;
+  box-shadow:0 4px 18px rgba(0,0,0,.08);
 ">
 
-<div style="text-align:center;margin-bottom:30px">
+  <div style="text-align:center;margin-bottom:30px;">
+    <img
+      src="https://writenowbooks.com/images/writenowbooks-logo.png"
+      alt="WriteNowBooks Logo"
+      style="
+        width:260px;
+        max-width:100%;
+        height:auto;
+        display:block;
+        margin:auto;
+      "
+    />
 
-<img
-src="https://writenowbooks.com/images/writenowbooks-logo.png"
-width="260"
-/>
+    <h1 style="color:#d97706;margin-top:25px;">
+      Arizona ESA Funding Request
+    </h1>
 
-<h1 style="
-color:#facc15;
-margin-top:20px;
-">
-Arizona ESA Funding Request
-</h1>
+    <p style="color:#374151;font-size:15px;">
+      WriteNowBooks Student Author Program
+    </p>
+  </div>
 
-</div>
+  <p>Hello ${parentName || "Parent/Guardian"},</p>
 
-<p>
-Hello ${parentName},
-</p>
+  <p>
+    Your student's WriteNowBooks ESA invoice details have been prepared.
+    Please use this information with your Arizona ESA/ClassWallet process.
+  </p>
 
-<p>
-Your student's WriteNowBooks ESA request has been prepared successfully.
-</p>
+  <div style="
+    background:#f9fafb;
+    padding:25px;
+    border-radius:12px;
+    margin-top:25px;
+    border:1px solid #e5e7eb;
+  ">
+    <h2 style="color:#d97706;margin-top:0;">
+      Student Information
+    </h2>
 
-<div style="
-background:#1f2937;
-padding:25px;
-border-radius:12px;
-margin-top:25px;
-">
+    <p><strong>Student:</strong> ${studentName || "Not provided"}</p>
+    <p><strong>Grade:</strong> ${studentGrade || "Not provided"}</p>
+  </div>
 
-<h2 style="color:#facc15">
-Student Information
-</h2>
+  <div style="
+    background:#f9fafb;
+    padding:25px;
+    border-radius:12px;
+    margin-top:20px;
+    border:1px solid #e5e7eb;
+  ">
+    <h2 style="color:#d97706;margin-top:0;">
+      Project Information
+    </h2>
 
-<p><strong>Student:</strong> ${studentName}</p>
+    <p><strong>Book Project:</strong> ${projectIdea || "Not provided"}</p>
+    <p><strong>Package:</strong> ${packageChoice || "Not provided"}</p>
+    <p><strong>Amount:</strong> ${packagePrice || "Not provided"}</p>
+  </div>
 
-<p><strong>Grade:</strong> ${studentGrade}</p>
+  <div style="
+    background:#f9fafb;
+    padding:25px;
+    border-radius:12px;
+    margin-top:20px;
+    border:1px solid #e5e7eb;
+  ">
+    <h2 style="color:#d97706;margin-top:0;">
+      Invoice Information
+    </h2>
 
-</div>
+    <p><strong>Invoice #:</strong> ${invoiceNumber || "Pending"}</p>
+    <p><strong>Status:</strong> Pending ESA Submission</p>
+  </div>
 
+  <div style="
+    background:#ecfdf5;
+    padding:25px;
+    border-radius:12px;
+    margin-top:20px;
+    border:1px solid #10b981;
+  ">
+    <h2 style="color:#047857;margin-top:0;">
+      Next Step
+    </h2>
 
-<div style="
-background:#1f2937;
-padding:25px;
-border-radius:12px;
-margin-top:20px;
-">
+    <p>
+      Log into your Arizona ESA/ClassWallet account and submit this invoice
+      request for approval.
+    </p>
+  </div>
 
-<h2 style="color:#facc15">
-Project Information
-</h2>
+  <div style="
+    margin-top:25px;
+    padding:20px;
+    border-radius:12px;
+    background:#fffbeb;
+    border:1px solid #facc15;
+  ">
+    <h3 style="color:#b45309;margin-top:0;">
+      ESA Progress
+    </h3>
 
-<p>
-<strong>Book Project:</strong>
-${projectIdea || "Not provided"}
-</p>
+    <p>✓ ESA request received</p>
+    <p>✓ Invoice details prepared</p>
+    <p>⏳ Pending ESA submission</p>
+    <p>□ ESA review</p>
+    <p>□ Funding approval</p>
+    <p>□ Student project begins</p>
+  </div>
 
-<p>
-<strong>Package:</strong>
-${packageChoice}
-</p>
-
-<p>
-<strong>Amount:</strong>
-${packagePrice}
-</p>
-
-</div>
-
-
-<div style="
-background:#1f2937;
-padding:25px;
-border-radius:12px;
-margin-top:20px;
-">
-
-<h2 style="color:#facc15">
-Invoice Information
-</h2>
-
-<p>
-<strong>Invoice #:</strong>
-${invoiceNumber}
-</p>
-
-<p>
-<strong>Status:</strong>
-Pending ESA Submission
-</p>
-
-</div>
-
-<div style="
-background:#0f766e;
-padding:25px;
-border-radius:12px;
-margin-top:20px;
-">
-
-<h2>
-Next Step
-</h2>
-
-<p>
-Please log into your Arizona ESA/ClassWallet account and submit this invoice request for approval.
-</p>
-
-</div>
-
-<div
-style="
-text-align:center;
-margin-top:40px;
-font-size:13px;
-color:#9ca3af;
-"
->
-
-WriteNowBooks Student Author Program
-
-<br/>
-
-Student writing • literacy • authorship • creativity
+  <div style="
+    text-align:center;
+    margin-top:40px;
+    font-size:13px;
+    color:#6b7280;
+  ">
+    WriteNowBooks Student Author Program
+    <br />
+    Student writing • literacy • authorship • creativity
+    <br />
+    WriteNowBooks.com
+  </div>
 
 </div>
-
-</div>
-`
+      `,
     });
 
     return NextResponse.json({
