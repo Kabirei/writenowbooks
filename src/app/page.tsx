@@ -38,6 +38,13 @@ export default function Home() {
             >
               View Pricing
             </Link>
+
+            <Link
+              href="/esa"
+              className="border border-yellow-500 text-yellow-300 px-8 py-4 rounded-lg font-semibold hover:bg-yellow-400 hover:text-black transition"
+            >
+              Arizona ESA Families
+            </Link>
           </div>
         </div>
       </section>
@@ -50,17 +57,37 @@ export default function Home() {
 
           <div className="grid gap-6 md:grid-cols-3">
             {[
-              ["Starter", "$99", "50 pages or less. Core book package without image generation."],
-              ["Enhanced", "$159", "50 pages or less. Includes image generation and visual support."],
-              ["Premium Longform", "$249", "50+ pages with long-form support and image generation where needed."],
+              [
+                "Starter",
+                "$99",
+                "50 pages or less. Core book package without image generation."
+              ],
+              [
+                "Enhanced",
+                "$159",
+                "50 pages or less. Includes image generation and visual support."
+              ],
+              [
+                "Premium Longform",
+                "$249",
+                "50+ pages with long-form support and image generation where needed."
+              ],
             ].map(([name, price, description]) => (
               <div
                 key={name}
                 className="border border-gray-700 rounded-2xl p-8 bg-gray-950"
               >
-                <h3 className="text-2xl font-semibold mb-3">{name}</h3>
-                <p className="text-4xl font-bold mb-4">{price}</p>
-                <p className="text-gray-300 mb-6">{description}</p>
+                <h3 className="text-2xl font-semibold mb-3">
+                  {name}
+                </h3>
+
+                <p className="text-4xl font-bold mb-4">
+                  {price}
+                </p>
+
+                <p className="text-gray-300 mb-6">
+                  {description}
+                </p>
 
                 <Link
                   href="/package-selection"
