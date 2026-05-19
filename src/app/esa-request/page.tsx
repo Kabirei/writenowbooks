@@ -124,23 +124,102 @@ export default function ESARequestPage() {
   }
 };
 
-  const handlePrepareInvoice = () => {
-    const activeInvoiceNumber = ensureInvoiceNumber();
+  const handlePrepareInvoice = async () => {
+
+  const activeInvoiceNumber =
+    ensureInvoiceNumber();
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/esa/update-invoice",
+        {
+          method:"POST",
+          headers:{
+            "Content-Type":
+            "application/json"
+          },
+          body:JSON.stringify({
+
+            parentEmail:
+            formData.parentEmail,
+
+            invoiceNumber:
+            activeInvoiceNumber
+
+          })
+        }
+      );
+
+    const data =
+      await response.json();
+
+    if(
+      !response.ok ||
+      !data.success
+    ){
+
+      throw new Error(
+        data.message
+      );
+
+    }
 
     const updatedRequest = {
+
       ...formData,
-      invoicePrepared: true,
-      invoiceNumber: activeInvoiceNumber,
-      invoiceStatus: "Pending ESA Submission",
-      packagePrice: getPackagePrice(),
-      status: "Invoice details prepared for ESA funding submission",
+
+      invoicePrepared:true,
+
+      invoiceNumber:
+      activeInvoiceNumber,
+
+      invoiceStatus:
+      "Pending ESA Submission",
+
+      packagePrice:
+      getPackagePrice(),
+
+      status:
+      "Invoice details prepared for ESA funding submission"
+
     };
 
-    localStorage.setItem("esaRequest", JSON.stringify(updatedRequest));
+    localStorage.setItem(
+      "esaRequest",
+      JSON.stringify(
+        updatedRequest
+      )
+    );
 
-    setInvoicePrepared(true);
-    setMessage("Invoice details prepared successfully.");
-  };
+    setInvoicePrepared(
+      true
+    );
+
+    setMessage(
+      "Invoice details prepared successfully."
+    );
+
+  } catch(error){
+
+    setMessage(
+
+      error instanceof Error
+
+      ?
+
+      error.message
+
+      :
+
+      "Unable to save invoice."
+
+    );
+
+  }
+
+};
 
   const loadLogo = () => {
     return new Promise<HTMLImageElement>((resolve, reject) => {

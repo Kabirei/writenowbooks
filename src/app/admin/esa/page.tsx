@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import ESARequestModal from "@/components/ESARequestModal";
 
 type ESARequest = {
   id: string;
@@ -9,9 +10,11 @@ type ESARequest = {
   parent_email: string;
   student_name: string;
   student_grade: string;
+  project_idea?: string;
   package_choice: string;
   package_price: string;
   invoice_status: string;
+  invoice_number?: string;
 };
 
 export default function Page() {
@@ -20,6 +23,10 @@ export default function Page() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [selectedRequest, setSelectedRequest] = useState<ESARequest | null>(
+    null
+  );
+  const [resendingId, setResendingId] = useState("");
 
   const statusOptions = [
     "Pending ESA Submission",
@@ -32,33 +39,26 @@ export default function Page() {
   ];
 
   const filteredRequests = requests.filter((request) => {
-  const term = search.trim().toLowerCase();
+    const term = search.trim().toLowerCase();
 
-  if (!term && statusFilter === "All") {
-    return true;
-  }
+    if (!term && statusFilter === "All") {
+      return true;
+    }
 
-  const parent =
-    String(request.parent_name || "").toLowerCase();
+    const parent = String(request.parent_name || "").toLowerCase();
+    const student = String(request.student_name || "").toLowerCase();
+    const email = String(request.parent_email || "").toLowerCase();
 
-  const student =
-    String(request.student_name || "").toLowerCase();
+    const matchesSearch =
+      parent.includes(term) ||
+      student.includes(term) ||
+      email.includes(term);
 
-  const email =
-    String(request.parent_email || "").toLowerCase();
+    const matchesStatus =
+      statusFilter === "All" ? true : request.invoice_status === statusFilter;
 
-  const matchesSearch =
-    parent.includes(term) ||
-    student.includes(term) ||
-    email.includes(term);
-
-  const matchesStatus =
-    statusFilter === "All"
-      ? true
-      : request.invoice_status === statusFilter;
-
-  return matchesSearch && matchesStatus;
-});
+    return matchesSearch && matchesStatus;
+  });
 
   const loadRequests = async () => {
     setLoading(true);
@@ -69,12 +69,10 @@ export default function Page() {
 
       if (data.success) {
         setRequests(data.requests || []);
-      } else {
-        setMessage(data.message || "Unable to load ESA requests.");
       }
     } catch (error) {
-      console.error("LOAD ESA REQUESTS ERROR:", error);
-      setMessage("Unable to load ESA requests.");
+      console.error(error);
+      setMessage("Unable to load requests.");
     } finally {
       setLoading(false);
     }
@@ -102,11 +100,11 @@ export default function Page() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Unable to update status.");
+        throw new Error(data.message);
       }
 
-      setRequests((currentRequests) =>
-        currentRequests.map((request) =>
+      setRequests((current) =>
+        current.map((request) =>
           request.id === id
             ? {
                 ...request,
@@ -116,11 +114,55 @@ export default function Page() {
         )
       );
 
-      setMessage("Status updated");
-    } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Unable to update status."
-      );
+"Status updated"
+);
+
+await fetch(
+"/api/admin/esa/status-email",
+{
+method:"POST",
+headers:{
+"Content-Type":
+"application/json"
+},
+body:JSON.stringify({
+id,
+invoiceStatus
+})
+}
+);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to update");
+    }
+  };
+
+  const resendInvoice = async (id: string) => {
+    setResendingId(id);
+    setMessage("Sending invoice...");
+
+    try {
+      const response = await fetch("/api/admin/esa/resend", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to resend invoice.");
+      }
+
+      setMessage("Invoice resent successfully.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to resend.");
+    } finally {
+      setResendingId("");
     }
   };
 
@@ -176,6 +218,8 @@ export default function Page() {
                   <th className="p-4">Package</th>
                   <th className="p-4">Amount</th>
                   <th className="p-4">Status</th>
+                  <th className="p-4">View</th>
+                  <th className="p-4">Resend</th>
                 </tr>
               </thead>
 
@@ -220,11 +264,33 @@ export default function Page() {
                           ))}
                         </select>
                       </td>
+
+                      <td className="p-4">
+                        <button
+                          onClick={() => setSelectedRequest(request)}
+                          className="bg-blue-600 px-4 py-2 rounded-lg font-bold"
+                        >
+                          View
+                        </button>
+                      </td>
+
+                      <td className="p-4">
+                        <button
+                          onClick={() => resendInvoice(request.id)}
+                          disabled={resendingId === request.id}
+                          className="bg-green-600 px-4 py-2 rounded-lg font-bold disabled:opacity-60"
+                        >
+                          {resendingId === request.id ? "Sending..." : "Resend"}
+                        </button>
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td className="p-6 text-center text-gray-500" colSpan={7}>
+                    <td
+                      colSpan={9}
+                      className="p-6 text-center text-gray-500"
+                    >
                       No ESA requests found.
                     </td>
                   </tr>
@@ -234,6 +300,13 @@ export default function Page() {
           </div>
         )}
       </div>
+
+      {selectedRequest && (
+        <ESARequestModal
+          request={selectedRequest}
+          onClose={() => setSelectedRequest(null)}
+        />
+      )}
     </main>
   );
 }
