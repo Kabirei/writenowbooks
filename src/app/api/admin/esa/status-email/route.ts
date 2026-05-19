@@ -9,10 +9,15 @@ const statusMessages: Record<string, { subject: string; headline: string; body: 
     body: "Your student's WriteNowBooks ESA request has been marked as approved. The next step is funding confirmation and project scheduling.",
   },
   Funded: {
-    subject: "Your WriteNowBooks ESA Funding Was Received",
-    headline: "Funding received.",
-    body: "Your student's WriteNowBooks ESA funding has been marked as received. We can now move forward with the student book project workflow.",
-  },
+  subject:
+    "Your WriteNowBooks ESA Funding Was Received",
+
+  headline:
+    "Funding received.",
+
+  body:
+    "Your student's WriteNowBooks ESA funding has been received. Student access has been unlocked. Visit https://writenowbooks.com/student-login and enter the parent email used during registration to access the Student Dashboard and begin the project.",
+},
   "Project Started": {
     subject: "Your WriteNowBooks Student Book Project Has Started",
     headline: "Your student's book project has begun.",
