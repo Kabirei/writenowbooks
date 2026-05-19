@@ -3,50 +3,86 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Page() {
+export default function Page(){
 
-  const [password,setPassword] =
-    useState("");
+const router=
+useRouter();
 
-  const [message,setMessage] =
-    useState("");
+const [password,setPassword]=
+useState("");
 
-  const router =
-    useRouter();
+const [message,setMessage]=
+useState("");
 
-  const handleLogin = () => {
+const [loading,setLoading]=
+useState(false);
 
-    if (
-      password ===
-      "WriteNowBooksAdmin2026"
-    ) {
+const handleLogin=
+async()=>{
 
-      document.cookie =
-        "admin_access=granted; path=/";
+setLoading(true);
 
-      router.push(
-        "/admin/esa"
-      );
+setMessage("");
 
-    } else {
+try{
 
-      setMessage(
-        "Incorrect password."
-      );
+const response=
+await fetch(
+"/api/admin/login",
+{
+method:"POST",
+headers:{
+"Content-Type":
+"application/json"
+},
+body:JSON.stringify({
+password
+})
+}
+);
 
-    }
+const data=
+await response.json();
 
-  };
+if(
+!response.ok
+||
+!data.success
+){
 
-  return (
+throw new Error(
+data.message
+);
+
+}
+
+router.push(
+"/admin/esa"
+);
+
+}catch(error){
+
+setMessage(
+error instanceof Error
+? error.message
+: "Login failed."
+);
+
+}
+
+setLoading(false);
+
+};
+
+return(
 
 <main className="
 min-h-screen
 bg-black
 text-white
 flex
-items-center
 justify-center
+items-center
 px-6
 ">
 
@@ -63,28 +99,23 @@ p-8
 <h1 className="
 text-3xl
 font-bold
-mb-6
 text-center
+mb-6
 ">
-Admin Login
-</h1>
 
-<p className="
-text-gray-400
-mb-6
-text-center
-">
-Enter admin password
-</p>
+WriteNowBooks
+Admin Login
+
+</h1>
 
 <input
 type="password"
+placeholder="Password"
 value={password}
 onChange={(e)=>
 setPassword(
 e.target.value
 )}
-placeholder="Password"
 className="
 w-full
 p-4
@@ -92,12 +123,17 @@ rounded-lg
 bg-gray-900
 border
 border-gray-700
-mb-6
+mb-5
 "
 />
 
 <button
-onClick={handleLogin}
+onClick={
+handleLogin
+}
+disabled={
+loading
+}
 className="
 w-full
 bg-yellow-400
@@ -107,17 +143,27 @@ p-4
 rounded-lg
 "
 >
-Login
+
+{
+loading
+?
+"Logging in..."
+:
+"Login"
+}
+
 </button>
 
-{message && (
+{message&&(
 
 <p className="
-mt-4
+mt-5
 text-red-400
 text-center
 ">
+
 {message}
+
 </p>
 
 )}
@@ -126,5 +172,6 @@ text-center
 
 </main>
 
-  );
+);
+
 }
