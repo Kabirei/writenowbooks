@@ -132,6 +132,22 @@ invoiceStatus
 })
 }
 );
+
+await fetch(
+"/api/admin/esa/unlock-student",
+{
+method:"POST",
+headers:{
+"Content-Type":
+"application/json"
+},
+body:JSON.stringify({
+id,
+invoiceStatus
+})
+}
+);
+
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Unable to update");
     }
