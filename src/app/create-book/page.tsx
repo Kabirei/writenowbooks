@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentUser } from "@/lib/getUser";
 
-export default function CreateBookPage() {
+function CreateBookContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -341,5 +341,19 @@ export default function CreateBookPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function CreateBookPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-black text-white flex items-center justify-center">
+          Loading book creation form...
+        </main>
+      }
+    >
+      <CreateBookContent />
+    </Suspense>
   );
 }
