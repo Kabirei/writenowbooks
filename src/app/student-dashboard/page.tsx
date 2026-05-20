@@ -3,344 +3,134 @@
 import { useEffect, useState } from "react";
 
 export default function Page() {
+  const [studentAccess, setStudentAccess] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
 
-const [studentAccess,setStudentAccess] =
-useState<boolean | null>(null);
+  useEffect(() => {
+    const request = localStorage.getItem("esaRequest");
 
-const [loading,setLoading] =
-useState(true);
+    if (!request) {
+      setStudentAccess(false);
+      setLoading(false);
+      return;
+    }
 
-useEffect(()=>{
+    const parsed = JSON.parse(request);
 
-const request =
-localStorage.getItem(
-"esaRequest"
-);
+    fetch("/api/student/access", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        parentEmail: parsed.parentEmail,
+      }),
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        setStudentAccess(Boolean(data.success && data.studentAccess));
+      })
+      .catch((error) => {
+        console.error(error);
+        setStudentAccess(false);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
-if(!request){
+  if (loading) {
+    return (
+      <main className="min-h-screen bg-black text-white flex justify-center items-center">
+        Loading dashboard...
+      </main>
+    );
+  }
 
-setStudentAccess(
-false
-);
+  if (!studentAccess) {
+    return (
+      <main className="min-h-screen bg-black text-white px-6 py-16">
+        <div className="max-w-3xl mx-auto bg-gray-950 border border-gray-700 rounded-2xl p-10 text-center">
+          <h1 className="text-4xl font-bold mb-6">Funding Pending</h1>
 
-setLoading(
-false
-);
+          <p className="text-gray-300 text-lg">
+            Your ESA request has not yet been funded. Once funding is confirmed,
+            your student workspace will unlock automatically.
+          </p>
+        </div>
+      </main>
+    );
+  }
 
-return;
+  return (
+    <main className="min-h-screen bg-black text-white px-6 py-16">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-4xl font-bold mb-6">Student Dashboard</h1>
 
-}
+        <p className="text-gray-400 mb-10">
+          Welcome to the WriteNowBooks Student Author Program.
+        </p>
 
-const parsed =
-JSON.parse(
-request
-);
+        <div className="space-y-6">
+          <div className="bg-gray-950 border border-gray-700 rounded-2xl p-8">
+            <h2 className="text-2xl font-bold mb-3">My Book Project</h2>
 
-fetch(
-"/api/student/access",
-{
-method:"POST",
-headers:{
-"Content-Type":
-"application/json"
-},
-body:JSON.stringify({
+            <p className="text-gray-400 mb-6">
+              Your student project is active and ready. Continue into the
+              existing WriteNowBooks creation workflow.
+            </p>
 
-parentEmail:
-parsed.parentEmail
+            <button
+              onClick={() => {
+                window.location.href = "/create-book?esa=true";
+              }}
+              className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl"
+            >
+              Begin Project
+            </button>
+          </div>
 
-})
-}
-)
+          <div className="bg-gray-950 border border-gray-700 rounded-2xl p-8">
+  <h2 className="text-2xl font-bold mb-6">
+    Quick Actions
+  </h2>
 
-.then(
-response=>
-response.json()
-)
+  <div className="flex gap-4 flex-wrap">
 
-.then(data=>{
+    <button
+      onClick={()=>{
+        window.location.href="/dashboard";
+      }}
+      className="
+      bg-blue-600
+      px-5
+      py-3
+      rounded-xl
+      font-bold
+      "
+    >
+      Dashboard
+    </button>
 
-if(
-data.success
-){
+    <button
+      onClick={()=>{
+        window.location.href="/account";
+      }}
+      className="
+      bg-purple-600
+      px-5
+      py-3
+      rounded-xl
+      font-bold
+      "
+    >
+      Account
+    </button>
 
-setStudentAccess(
-data.studentAccess
-);
-
-}
-
-})
-
-.catch(error=>{
-
-console.error(
-error
-);
-
-setStudentAccess(
-false
-);
-
-})
-
-.finally(()=>{
-
-setLoading(
-false
-);
-
-});
-
-},[]);
-
-if(
-loading
-){
-
-return(
-
-<main className="
-min-h-screen
-bg-black
-text-white
-flex
-justify-center
-items-center
-">
-
-Loading dashboard...
-
-</main>
-
-);
-
-}
-
-if(
-!studentAccess
-){
-
-return(
-
-<main className="
-min-h-screen
-bg-black
-text-white
-px-6
-py-16
-">
-
-<div className="
-max-w-3xl
-mx-auto
-bg-gray-950
-border
-border-gray-700
-rounded-2xl
-p-10
-text-center
-">
-
-<h1 className="
-text-4xl
-font-bold
-mb-6
-">
-
-Funding Pending
-
-</h1>
-
-<p className="
-text-gray-300
-text-lg
-">
-
-Your ESA request
-has not yet been
-funded.
-
-Once funding
-is confirmed,
-your student
-workspace will
-unlock automatically.
-
-</p>
-
+  </div>
 </div>
-
-</main>
-
-);
-
-}
-
-return(
-
-<main className="
-min-h-screen
-bg-black
-text-white
-px-6
-py-16
-">
-
-<div className="
-max-w-6xl
-mx-auto
-">
-
-<h1 className="
-text-4xl
-font-bold
-mb-6
-">
-
-Student Dashboard
-
-</h1>
-
-<p className="
-text-gray-400
-mb-10
-">
-
-Welcome to
-WriteNowBooks
-Student Author Program
-
-</p>
-
-<div className="
-grid
-md:grid-cols-2
-gap-6
-">
-
-<div className="
-bg-gray-950
-border
-border-gray-700
-rounded-2xl
-p-8
-">
-
-<h2 className="
-text-2xl
-font-bold
-mb-3
-">
-
-My Book Project
-
-</h2>
-
-<p className="
-text-gray-400
-">
-
-Your student
-project is active.
-
-</p>
-
-</div>
-
-<div className="
-bg-gray-950
-border
-border-gray-700
-rounded-2xl
-p-8
-">
-
-<h2 className="
-text-2xl
-font-bold
-mb-3
-">
-
-Book Builder
-
-</h2>
-
-<p className="
-text-gray-400
-">
-
-Begin building
-your book.
-
-</p>
-
-</div>
-
-<div className="
-bg-gray-950
-border
-border-gray-700
-rounded-2xl
-p-8
-">
-
-<h2 className="
-text-2xl
-font-bold
-mb-3
-">
-
-Progress
-
-</h2>
-
-<p className="
-text-gray-400
-">
-
-Track progress
-and milestones.
-
-</p>
-
-</div>
-
-<div className="
-bg-gray-950
-border
-border-gray-700
-rounded-2xl
-p-8
-">
-
-<h2 className="
-text-2xl
-font-bold
-mb-3
-">
-
-Messages
-
-</h2>
-
-<p className="
-text-gray-400
-">
-
-Communication
-and updates.
-
-</p>
-
-</div>
-
-</div>
-
-</div>
-
-</main>
-
-);
-
+        </div>
+      </div>
+    </main>
+  );
 }

@@ -35,6 +35,9 @@ export default function Page() {
         "esaRequest",
         JSON.stringify({
           parentEmail,
+          packageChoice: data.packageChoice || "",
+          packagePrice: data.packagePrice || "",
+          studentName: data.studentName || "",
         })
       );
 

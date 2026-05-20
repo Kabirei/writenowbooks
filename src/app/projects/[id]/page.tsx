@@ -183,16 +183,81 @@ export default function ProjectDetailPage() {
       }
 
       const orders: SavedOrder[] = JSON.parse(
-        localStorage.getItem("writeNowOrders") || "[]"
-      );
+localStorage.getItem("writeNowOrders") || "[]"
+);
 
-      const foundProject = orders.find((order) => order.id === id) || null;
-      setProject(foundProject);
+let foundProject =
+orders.find(
+(order)=>order.id===id
+)||null;
 
-      if (!foundProject) {
-        setLoading(false);
-        return;
-      }
+
+/* NEW:
+if local backup missing,
+check Supabase */
+
+if(!foundProject){
+
+try{
+
+const { data } =
+await supabase
+.from("projects")
+.select("*")
+.eq("id",id)
+.single();
+
+if(data){
+
+foundProject={
+
+id:data.id,
+
+paymentId:
+data.payment_id || "ESA",
+
+packageName:
+data.package_name || "ESA Student",
+
+packagePrice:
+data.package_price || "$0",
+
+packagePlan:
+data.package_plan || "premium",
+
+status:
+data.status || "ACTIVE",
+
+createdAt:
+data.created_at,
+
+bookData:
+data.book_data
+
+};
+
+}
+
+}catch(error){
+
+console.log(
+"supabase lookup failed",
+error
+);
+
+}
+
+}
+
+setProject(foundProject);
+
+if(!foundProject){
+
+setLoading(false);
+
+return;
+
+}
 
       try {
         const dbOutline = await getOutline(id);
