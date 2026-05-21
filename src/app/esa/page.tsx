@@ -29,45 +29,48 @@ export default function ESA() {
 
           <div className="border border-gray-700 rounded-xl p-6">
             <h2 className="text-2xl font-semibold mb-3">
-              How the ESA Request Works
+              How ESA Payment Works
             </h2>
 
             <div className="space-y-3 text-gray-300">
               <p>
-                Step 1: Start an ESA request before making a payment.
+                Step 1: Choose whether your family wants to use ClassWallet
+                DirectPay or a ClassWallet debit card.
               </p>
 
               <p>
-                Step 2: Provide student, parent, and project details.
+                Step 2: If using DirectPay, WriteNowBooks prepares invoice
+                details for submission through ClassWallet.
               </p>
 
               <p>
-                Step 3: WriteNowBooks prepares invoice details for ESA funding
-                submission.
+                Step 3: If using a ClassWallet debit card, families may continue
+                through the normal WriteNowBooks checkout process.
               </p>
 
               <p>
-                Step 4: After the ESA payment is approved or completed, the
-                student book project can begin.
+                Step 4: Once payment is confirmed, the student dashboard unlocks
+                and the book creation workflow begins.
               </p>
             </div>
           </div>
 
           <div className="border border-yellow-500 rounded-xl p-6 bg-yellow-500/10">
             <h2 className="text-xl font-semibold mb-3">
-              Arizona ESA Request
+              Arizona ESA Payment Options
             </h2>
 
             <p className="text-gray-300 mb-5">
-              Arizona homeschool families can begin an ESA funding request
-              before paying out of pocket.
+              Arizona ESA families can choose the payment path that fits their
+              ClassWallet account: DirectPay invoice submission or ClassWallet
+              debit card checkout.
             </p>
 
             <a
-              href="/esa-request"
+              href="/esa-payment"
               className="inline-block bg-yellow-400 text-black px-6 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition"
             >
-              Start ESA Request
+              Choose ESA Payment Method
             </a>
           </div>
         </div>
