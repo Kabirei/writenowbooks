@@ -12,8 +12,7 @@ export default function ESARequestPage() {
     packageChoice: "Starter",
   });
 
-  const [step, setStep] =
-    useState<"start" | "details" | "summary">("start");
+  const [step, setStep] = useState<"start" | "details" | "summary">("start");
 
   const [message, setMessage] = useState("");
   const [invoicePrepared, setInvoicePrepared] = useState(false);
@@ -22,6 +21,16 @@ export default function ESARequestPage() {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [emailSent, setEmailSent] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+
+  const vendorInfo = {
+    name: "WriteNowBooks.com",
+    legalName: "Kabir Elohim Isreal LLC",
+    address: "51 E Monroe Ave, Suite 114",
+    cityStateZip: "Buckeye, AZ 85326",
+    phone: "602-374-0228",
+    email: "writenowbooks1@gmail.com",
+    website: "www.WriteNowBooks.com",
+  };
 
   const packagePrices: Record<string, string> = {
     Starter: "$99",
@@ -33,10 +42,44 @@ export default function ESARequestPage() {
     return packagePrices[formData.packageChoice] || "$99";
   };
 
+  const getNumericPackagePrice = () => {
+    return Number(getPackagePrice().replace("$", "")) || 0;
+  };
+
+  const getProcessingFee = () => {
+    return getNumericPackagePrice() * 0.02;
+  };
+
+  const formatCurrency = (amount: number) => {
+    return `$${amount.toFixed(2)}`;
+  };
+
+  const getInvoiceSubtotal = () => {
+    return formatCurrency(getNumericPackagePrice());
+  };
+
+  const getInvoiceProcessingFee = () => {
+    return formatCurrency(getProcessingFee());
+  };
+
+  const getInvoiceTotal = () => {
+    return formatCurrency(getNumericPackagePrice() + getProcessingFee());
+  };
+
+  const getServiceStartDate = () => {
+    return new Date().toLocaleDateString();
+  };
+
+  const getServiceEndDate = () => {
+    const date = new Date();
+    date.setMonth(date.getMonth() + 1);
+    return date.toLocaleDateString();
+  };
+
   const generateInvoiceNumber = () => {
     const year = new Date().getFullYear();
     const random = Math.floor(1000 + Math.random() * 9000);
-    return `ESA-${year}-${random}`;
+    return `WNB-ESA-${year}-${random}`;
   };
 
   const ensureInvoiceNumber = () => {
@@ -65,18 +108,13 @@ export default function ESARequestPage() {
   };
 
   const handleSubmit = async () => {
-  try {
-    localStorage.setItem(
-      "esaRequest",
-      JSON.stringify(formData)
-    );
+    try {
+      localStorage.setItem("esaRequest", JSON.stringify(formData));
 
-    const response = await fetch(
-      "/api/esa/save-request",
-      {
+      const response = await fetch("/api/esa/save-request", {
         method: "POST",
         headers: {
-          "Content-Type":"application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           parentName: formData.parentName,
@@ -85,141 +123,69 @@ export default function ESARequestPage() {
           studentGrade: formData.studentGrade,
           projectIdea: formData.projectIdea,
           packageChoice: formData.packageChoice,
-          packagePrice: getPackagePrice(),
+          packagePrice: getInvoiceTotal(),
         }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "Unable to save ESA request.");
       }
-    );
 
-    const data =
-      await response.json();
+      setMessage("ESA request saved successfully.");
+      setStep("summary");
+    } catch (error) {
+      console.error("SAVE REQUEST ERROR:", error);
 
-    if (
-      !response.ok ||
-      !data.success
-    ) {
-      throw new Error(
-        data.message ||
-        "Unable to save ESA request."
+      setMessage(
+        error instanceof Error ? error.message : "Unable to save ESA request."
       );
     }
-
-    setMessage(
-      "ESA request saved successfully."
-    );
-
-    setStep("summary");
-
-  } catch(error){
-
-    console.error(
-      "SAVE REQUEST ERROR:",
-      error
-    );
-
-    setMessage(
-      error instanceof Error
-      ? error.message
-      : "Unable to save ESA request."
-    );
-  }
-};
+  };
 
   const handlePrepareInvoice = async () => {
+    const activeInvoiceNumber = ensureInvoiceNumber();
 
-  const activeInvoiceNumber =
-    ensureInvoiceNumber();
+    try {
+      const response = await fetch("/api/esa/update-invoice", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          parentEmail: formData.parentEmail,
+          invoiceNumber: activeInvoiceNumber,
+        }),
+      });
 
-  try {
+      const data = await response.json();
 
-    const response =
-      await fetch(
-        "/api/esa/update-invoice",
-        {
-          method:"POST",
-          headers:{
-            "Content-Type":
-            "application/json"
-          },
-          body:JSON.stringify({
+      if (!response.ok || !data.success) {
+        throw new Error(data.message);
+      }
 
-            parentEmail:
-            formData.parentEmail,
+      const updatedRequest = {
+        ...formData,
+        invoicePrepared: true,
+        invoiceNumber: activeInvoiceNumber,
+        invoiceStatus: "Pending ESA Submission",
+        packagePrice: getInvoiceTotal(),
+        subtotal: getInvoiceSubtotal(),
+        processingFee: getInvoiceProcessingFee(),
+        status: "Invoice details prepared for ESA funding submission",
+      };
 
-            invoiceNumber:
-            activeInvoiceNumber
+      localStorage.setItem("esaRequest", JSON.stringify(updatedRequest));
 
-          })
-        }
+      setInvoicePrepared(true);
+      setMessage("Invoice details prepared successfully.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to save invoice."
       );
-
-    const data =
-      await response.json();
-
-    if(
-      !response.ok ||
-      !data.success
-    ){
-
-      throw new Error(
-        data.message
-      );
-
     }
-
-    const updatedRequest = {
-
-      ...formData,
-
-      invoicePrepared:true,
-
-      invoiceNumber:
-      activeInvoiceNumber,
-
-      invoiceStatus:
-      "Pending ESA Submission",
-
-      packagePrice:
-      getPackagePrice(),
-
-      status:
-      "Invoice details prepared for ESA funding submission"
-
-    };
-
-    localStorage.setItem(
-      "esaRequest",
-      JSON.stringify(
-        updatedRequest
-      )
-    );
-
-    setInvoicePrepared(
-      true
-    );
-
-    setMessage(
-      "Invoice details prepared successfully."
-    );
-
-  } catch(error){
-
-    setMessage(
-
-      error instanceof Error
-
-      ?
-
-      error.message
-
-      :
-
-      "Unable to save invoice."
-
-    );
-
-  }
-
-};
+  };
 
   const loadLogo = () => {
     return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -256,23 +222,25 @@ export default function ESARequestPage() {
     doc.text(`Student: ${formData.studentName}`, 20, 125);
     doc.text(`Grade: ${formData.studentGrade}`, 20, 136);
     doc.text(`Selected Package: ${formData.packageChoice}`, 20, 147);
-    doc.text(`Package Price: ${getPackagePrice()}`, 20, 158);
+    doc.text(`Program Subtotal: ${getInvoiceSubtotal()}`, 20, 158);
+    doc.text(`ClassWallet Processing Fee 2%: ${getInvoiceProcessingFee()}`, 20, 169);
+    doc.text(`Invoice Total: ${getInvoiceTotal()}`, 20, 180);
 
-    doc.text("Book Project Idea:", 20, 174);
-    doc.text(formData.projectIdea || "Not provided", 20, 183, {
+    doc.text("Book Project Idea:", 20, 196);
+    doc.text(formData.projectIdea || "Not provided", 20, 205, {
       maxWidth: 165,
     });
 
     doc.setFontSize(13);
-    doc.text("Program Information", 20, 216);
+    doc.text("Program Information", 20, 236);
 
     doc.setFontSize(11);
-    doc.text("Program: WriteNowBooks Student Author Program", 20, 229);
-    doc.text("Educational Purpose:", 20, 242);
+    doc.text("Program: WriteNowBooks Student Author Program", 20, 249);
+    doc.text("Educational Purpose:", 20, 262);
     doc.text(
       "Student writing, literacy, creative expression, book development, structured educational projects, and guided student authorship.",
       20,
-      251,
+      271,
       { maxWidth: 165 }
     );
 
@@ -303,40 +271,89 @@ export default function ESARequestPage() {
     }
 
     doc.setFontSize(20);
-    doc.text("ESA Invoice", 20, 58);
+    doc.text("ESA / ClassWallet Invoice", 20, 58);
 
     doc.setFontSize(11);
     doc.text(`Invoice #: ${activeInvoiceNumber}`, 20, 74);
-    doc.text(`Date: ${new Date().toLocaleDateString()}`, 20, 85);
+    doc.text(`Invoice Date: ${new Date().toLocaleDateString()}`, 20, 85);
     doc.text("Status: Pending ESA Submission", 20, 96);
 
     doc.setFontSize(13);
-    doc.text("Bill To", 20, 116);
+    doc.text("Vendor Information", 20, 116);
 
     doc.setFontSize(11);
-    doc.text(`Parent / Guardian: ${formData.parentName}`, 20, 129);
-    doc.text(`Parent Email: ${formData.parentEmail || "Not provided"}`, 20, 140);
-    doc.text(`Student: ${formData.studentName}`, 20, 151);
-    doc.text(`Grade: ${formData.studentGrade}`, 20, 162);
+    doc.text(`Vendor: ${vendorInfo.name}`, 20, 129);
+    doc.text(`Legal Entity: ${vendorInfo.legalName}`, 20, 140);
+    doc.text(`Address: ${vendorInfo.address}`, 20, 151);
+    doc.text(`${vendorInfo.cityStateZip}`, 20, 162);
+    doc.text(`Phone: ${vendorInfo.phone}`, 20, 173);
+    doc.text(`Email: ${vendorInfo.email}`, 20, 184);
+    doc.text(`Website: ${vendorInfo.website}`, 20, 195);
 
     doc.setFontSize(13);
-    doc.text("Service Details", 20, 184);
+    doc.text("Bill To / Student Information", 20, 215);
 
     doc.setFontSize(11);
-    doc.text("Program: WriteNowBooks Student Author Program", 20, 197);
-    doc.text(`Package: ${formData.packageChoice}`, 20, 208);
-    doc.text(`Amount: ${getPackagePrice()}`, 20, 219);
+    doc.text(`Parent / Guardian: ${formData.parentName}`, 20, 228);
+    doc.text(`Parent Email: ${formData.parentEmail || "Not provided"}`, 20, 239);
+    doc.text(`Student: ${formData.studentName}`, 20, 250);
+    doc.text(`Grade: ${formData.studentGrade}`, 20, 261);
 
-    doc.text("Educational Purpose:", 20, 236);
+    doc.addPage();
+
+    doc.setFontSize(18);
+    doc.text("Service Details", 20, 25);
+
+    doc.setFontSize(11);
+    doc.text("Program: WriteNowBooks Student Author Program", 20, 42);
     doc.text(
-      "Student writing, literacy, creative expression, book development, structured educational projects, and guided student authorship.",
+      "Service Description: Online learning program focused on literacy, language arts, creative writing,",
       20,
-      245,
-      { maxWidth: 165 }
+      55
+    );
+    doc.text(
+      "reading comprehension, project-based learning, guided book creation, and student authorship.",
+      20,
+      66
+    );
+
+    doc.text(`Package: ${formData.packageChoice}`, 20, 84);
+    doc.text(`Service Start Date: ${getServiceStartDate()}`, 20, 95);
+    doc.text(`Service End Date: ${getServiceEndDate()}`, 20, 106);
+
+    doc.setFontSize(13);
+    doc.text("Itemized Charges", 20, 130);
+
+    doc.setFontSize(11);
+    doc.text(
+      `1. ${formData.packageChoice} - WriteNowBooks Student Author Program`,
+      20,
+      146
+    );
+    doc.text(`Program Fee: ${getInvoiceSubtotal()}`, 20, 158);
+    doc.text(
+      `ClassWallet Processing Fee 2%: ${getInvoiceProcessingFee()}`,
+      20,
+      170
     );
 
     doc.setFontSize(14);
-    doc.text(`Total Due: ${getPackagePrice()}`, 20, 270);
+    doc.text(`Total Amount Charged: ${getInvoiceTotal()}`, 20, 194);
+
+    doc.setFontSize(13);
+    doc.text("Educational Purpose", 20, 218);
+
+    doc.setFontSize(11);
+    doc.text(
+      "Student writing, literacy, creative expression, research, communication, editing, vocabulary development,",
+      20,
+      232
+    );
+    doc.text(
+      "book development, structured educational projects, and guided student authorship.",
+      20,
+      243
+    );
 
     doc.setFontSize(9);
     doc.text(
@@ -376,7 +393,9 @@ export default function ESARequestPage() {
           studentGrade: formData.studentGrade,
           projectIdea: formData.projectIdea,
           packageChoice: formData.packageChoice,
-          packagePrice: getPackagePrice(),
+          packagePrice: getInvoiceTotal(),
+          subtotal: getInvoiceSubtotal(),
+          processingFee: getInvoiceProcessingFee(),
           invoiceNumber: activeInvoiceNumber,
         }),
       });
@@ -394,7 +413,9 @@ export default function ESARequestPage() {
         invoiceStatus: "Pending ESA Submission",
         emailSent: true,
         emailedAt: new Date().toISOString(),
-        packagePrice: getPackagePrice(),
+        packagePrice: getInvoiceTotal(),
+        subtotal: getInvoiceSubtotal(),
+        processingFee: getInvoiceProcessingFee(),
         status: "ESA invoice email sent to parent",
       };
 
@@ -405,9 +426,7 @@ export default function ESARequestPage() {
       setMessage("ESA invoice email sent successfully.");
     } catch (error) {
       setMessage(
-        error instanceof Error
-          ? error.message
-          : "Unable to send ESA email."
+        error instanceof Error ? error.message : "Unable to send ESA email."
       );
     } finally {
       setIsSendingEmail(false);
@@ -430,12 +449,8 @@ export default function ESARequestPage() {
             <p>{step === "start" ? "⏳" : "✓"} Step 1: Start ESA Request</p>
 
             <p>
-              {step === "details"
-                ? "⏳"
-                : step === "summary"
-                ? "✓"
-                : "□"}{" "}
-              Step 2: Provide parent, student, and project details
+              {step === "details" ? "⏳" : step === "summary" ? "✓" : "□"} Step
+              2: Provide parent, student, and project details
             </p>
 
             <p>
@@ -600,7 +615,16 @@ export default function ESARequestPage() {
                 </p>
 
                 <p>
-                  <strong>Amount:</strong> {getPackagePrice()}
+                  <strong>Program Subtotal:</strong> {getInvoiceSubtotal()}
+                </p>
+
+                <p>
+                  <strong>ClassWallet Processing Fee 2%:</strong>{" "}
+                  {getInvoiceProcessingFee()}
+                </p>
+
+                <p>
+                  <strong>Invoice Total:</strong> {getInvoiceTotal()}
                 </p>
 
                 <p>
@@ -688,25 +712,25 @@ export default function ESARequestPage() {
                   </button>
 
                   <button
-  onClick={handleEmailParent}
-  type="button"
-  disabled={isSendingEmail}
-  style={{
-    background: isSendingEmail ? "#854d0e" : "#ca8a04",
-    color:"#fff",
-    padding:"18px 30px",
-    borderRadius:"14px",
-    border:"2px solid #fde047",
-    fontWeight:"bold",
-    minWidth:"260px",
-    cursor:isSendingEmail ? "not-allowed" : "pointer",
-    opacity:isSendingEmail ? .75 : 1,
-  }}
->
-  {isSendingEmail
-    ? "Sending Email..."
-    : "✉ Send ESA Invoice to Parent"}
-</button>
+                    onClick={handleEmailParent}
+                    type="button"
+                    disabled={isSendingEmail}
+                    style={{
+                      background: isSendingEmail ? "#854d0e" : "#ca8a04",
+                      color: "#fff",
+                      padding: "18px 30px",
+                      borderRadius: "14px",
+                      border: "2px solid #fde047",
+                      fontWeight: "bold",
+                      minWidth: "260px",
+                      cursor: isSendingEmail ? "not-allowed" : "pointer",
+                      opacity: isSendingEmail ? 0.75 : 1,
+                    }}
+                  >
+                    {isSendingEmail
+                      ? "Sending Email..."
+                      : "✉ Send ESA Invoice to Parent"}
+                  </button>
                 </div>
 
                 {pdfReady && (
