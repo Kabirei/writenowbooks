@@ -3,7 +3,11 @@ import "./globals.css";
 
 export const metadata = {
   title: "WriteNowBooks",
-  description: "AI-assisted book creation platform",
+  description:
+    "WriteNowBooks is an AI-powered student author platform for homeschool families, ESA students, and educators.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({
