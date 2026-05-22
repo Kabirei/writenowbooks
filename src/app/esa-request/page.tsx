@@ -24,7 +24,6 @@ export default function ESARequestPage() {
 
   const vendorInfo = {
     name: "WriteNowBooks.com",
-    legalName: "Kabir Elohim Isreal LLC",
     address: "51 E Monroe Ave, Suite 114",
     cityStateZip: "Buckeye, AZ 85326",
     phone: "602-374-0228",
