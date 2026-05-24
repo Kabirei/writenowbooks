@@ -23,10 +23,11 @@ export default function Page() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
-  const [selectedRequest, setSelectedRequest] = useState<ESARequest | null>(
-    null
-  );
+  const [selectedRequest, setSelectedRequest] =
+    useState<ESARequest | null>(null);
+
   const [resendingId, setResendingId] = useState("");
+  const [deletingId, setDeletingId] = useState("");
 
   const statusOptions = [
     "Pending ESA Submission",
@@ -55,7 +56,9 @@ export default function Page() {
       email.includes(term);
 
     const matchesStatus =
-      statusFilter === "All" ? true : request.invoice_status === statusFilter;
+      statusFilter === "All"
+        ? true
+        : request.invoice_status === statusFilter;
 
     return matchesSearch && matchesStatus;
   });
@@ -82,20 +85,26 @@ export default function Page() {
     loadRequests();
   }, []);
 
-  const updateStatus = async (id: string, invoiceStatus: string) => {
+  const updateStatus = async (
+    id: string,
+    invoiceStatus: string
+  ) => {
     setMessage("Updating...");
 
     try {
-      const response = await fetch("/api/admin/esa/update-status", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id,
-          invoiceStatus,
-        }),
-      });
+      const response = await fetch(
+        "/api/admin/esa/update-status",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id,
+            invoiceStatus,
+          }),
+        }
+      );
 
       const data = await response.json();
 
@@ -114,42 +123,41 @@ export default function Page() {
         )
       );
 
-      setMessage(
-"Status updated"
-);
+      setMessage("Status updated");
 
-await fetch(
-"/api/admin/esa/status-email",
-{
-method:"POST",
-headers:{
-"Content-Type":
-"application/json"
-},
-body:JSON.stringify({
-id,
-invoiceStatus
-})
-}
-);
+      await fetch(
+        "/api/admin/esa/status-email",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id,
+            invoiceStatus,
+          }),
+        }
+      );
 
-await fetch(
-"/api/admin/esa/unlock-student",
-{
-method:"POST",
-headers:{
-"Content-Type":
-"application/json"
-},
-body:JSON.stringify({
-id,
-invoiceStatus
-})
-}
-);
-
+      await fetch(
+        "/api/admin/esa/unlock-student",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id,
+            invoiceStatus,
+          }),
+        }
+      );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to update");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to update"
+      );
     }
   };
 
@@ -158,34 +166,95 @@ invoiceStatus
     setMessage("Sending invoice...");
 
     try {
-      const response = await fetch("/api/admin/esa/resend", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id,
-        }),
-      });
+      const response = await fetch(
+        "/api/admin/esa/resend",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id,
+          }),
+        }
+      );
 
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || "Unable to resend invoice.");
+        throw new Error(
+          data.message || "Unable to resend invoice."
+        );
       }
 
       setMessage("Invoice resent successfully.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to resend.");
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to resend."
+      );
     } finally {
       setResendingId("");
+    }
+  };
+
+  const deleteRequest = async (id: string) => {
+    const confirmed = window.confirm(
+      "Delete this ESA request?"
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    setDeletingId(id);
+    setMessage("Deleting request...");
+
+    try {
+      const response = await fetch(
+        "/api/admin/esa/delete",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "Unable to delete request."
+        );
+      }
+
+      setRequests((current) =>
+        current.filter((request) => request.id !== id)
+      );
+
+      setMessage("ESA request deleted.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to delete request."
+      );
+    } finally {
+      setDeletingId("");
     }
   };
 
   return (
     <main className="min-h-screen bg-black text-white px-6 py-16">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold mb-6">ESA Requests Admin</h1>
+        <h1 className="text-4xl font-bold mb-6">
+          ESA Requests Admin
+        </h1>
 
         <p className="text-gray-400 mb-6">
           Manage WriteNowBooks ESA requests
@@ -207,13 +276,21 @@ invoiceStatus
 
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={(e) =>
+              setStatusFilter(e.target.value)
+            }
             className="bg-gray-900 border border-gray-700 rounded-lg p-3"
           >
-            <option value="All">All Statuses</option>
+            <option value="All">
+              All Statuses
+            </option>
 
             {statusOptions.map((status) => (
-              <option key={status} value={status} className="text-black">
+              <option
+                key={status}
+                value={status}
+                className="text-black"
+              >
                 {status}
               </option>
             ))}
@@ -236,24 +313,38 @@ invoiceStatus
                   <th className="p-4">Status</th>
                   <th className="p-4">View</th>
                   <th className="p-4">Resend</th>
+                  <th className="p-4">Delete</th>
                 </tr>
               </thead>
 
               <tbody>
                 {filteredRequests.length > 0 ? (
                   filteredRequests.map((request) => (
-                    <tr key={request.id} className="border-t border-gray-800">
+                    <tr
+                      key={request.id}
+                      className="border-t border-gray-800"
+                    >
                       <td className="p-4">
-                        {new Date(request.created_at).toLocaleDateString()}
+                        {new Date(
+                          request.created_at
+                        ).toLocaleDateString()}
                       </td>
 
-                      <td className="p-4">{request.parent_name}</td>
+                      <td className="p-4">
+                        {request.parent_name}
+                      </td>
 
-                      <td className="p-4">{request.parent_email}</td>
+                      <td className="p-4">
+                        {request.parent_email}
+                      </td>
 
-                      <td className="p-4">{request.student_name}</td>
+                      <td className="p-4">
+                        {request.student_name}
+                      </td>
 
-                      <td className="p-4">{request.package_choice}</td>
+                      <td className="p-4">
+                        {request.package_choice}
+                      </td>
 
                       <td className="p-4 text-green-300">
                         {request.package_price}
@@ -262,10 +353,14 @@ invoiceStatus
                       <td className="p-4">
                         <select
                           value={
-                            request.invoice_status || "Pending ESA Submission"
+                            request.invoice_status ||
+                            "Pending ESA Submission"
                           }
                           onChange={(e) =>
-                            updateStatus(request.id, e.target.value)
+                            updateStatus(
+                              request.id,
+                              e.target.value
+                            )
                           }
                           className="bg-gray-900 border border-gray-700 rounded-lg p-2"
                         >
@@ -283,7 +378,9 @@ invoiceStatus
 
                       <td className="p-4">
                         <button
-                          onClick={() => setSelectedRequest(request)}
+                          onClick={() =>
+                            setSelectedRequest(request)
+                          }
                           className="bg-blue-600 px-4 py-2 rounded-lg font-bold"
                         >
                           View
@@ -292,11 +389,33 @@ invoiceStatus
 
                       <td className="p-4">
                         <button
-                          onClick={() => resendInvoice(request.id)}
-                          disabled={resendingId === request.id}
+                          onClick={() =>
+                            resendInvoice(request.id)
+                          }
+                          disabled={
+                            resendingId === request.id
+                          }
                           className="bg-green-600 px-4 py-2 rounded-lg font-bold disabled:opacity-60"
                         >
-                          {resendingId === request.id ? "Sending..." : "Resend"}
+                          {resendingId === request.id
+                            ? "Sending..."
+                            : "Resend"}
+                        </button>
+                      </td>
+
+                      <td className="p-4">
+                        <button
+                          onClick={() =>
+                            deleteRequest(request.id)
+                          }
+                          disabled={
+                            deletingId === request.id
+                          }
+                          className="bg-red-600 px-4 py-2 rounded-lg font-bold disabled:opacity-60"
+                        >
+                          {deletingId === request.id
+                            ? "Deleting..."
+                            : "Delete"}
                         </button>
                       </td>
                     </tr>
@@ -304,7 +423,7 @@ invoiceStatus
                 ) : (
                   <tr>
                     <td
-                      colSpan={9}
+                      colSpan={10}
                       className="p-6 text-center text-gray-500"
                     >
                       No ESA requests found.
@@ -320,7 +439,9 @@ invoiceStatus
       {selectedRequest && (
         <ESARequestModal
           request={selectedRequest}
-          onClose={() => setSelectedRequest(null)}
+          onClose={() =>
+            setSelectedRequest(null)
+          }
         />
       )}
     </main>

@@ -1,5 +1,7 @@
 "use client";
 
+import ClassWalletGuide from "@/components/ClassWalletGuide";
+
 export default function ESAPaymentPage() {
   const chooseDirectPay = () => {
     window.location.href = "/esa-request";
@@ -29,6 +31,34 @@ export default function ESAPaymentPage() {
           Arizona ESA families may use ClassWallet DirectPay or a ClassWallet
           prepaid debit card depending on how they prefer to complete payment.
         </p>
+
+        {/* NEW GUIDE SECTION */}
+
+        <div className="mb-12">
+          <div className="border border-yellow-500 rounded-2xl bg-yellow-500/10 p-6">
+            <h2 className="text-2xl font-bold text-yellow-400 mb-4">
+              Need Help Using ClassWallet?
+            </h2>
+
+            <p className="text-gray-300 mb-4">
+              Some parents have difficulty locating WriteNowBooks.com in the
+              Arizona ClassWallet DirectPay Vendor Portal. Use the guide below
+              for step-by-step instructions.
+            </p>
+
+            <p className="text-yellow-300 font-semibold">
+              Search:
+              <span className="text-white">
+                {" "}
+                "WriteNowBooks.com"
+              </span>
+            </p>
+          </div>
+
+          <ClassWalletGuide />
+        </div>
+
+        {/* EXISTING PAYMENT CARDS */}
 
         <div className="grid md:grid-cols-2 gap-8">
           <section className="bg-gray-950 border border-gray-700 rounded-2xl p-8">
@@ -84,8 +114,8 @@ export default function ESAPaymentPage() {
 
         <div className="mt-10 border border-blue-700 bg-blue-950/40 rounded-2xl p-6 text-blue-200">
           <p>
-            Note: Debit card purchases may require parents to upload receipts in
-            ClassWallet. DirectPay is the invoice-based path.
+            Note: Debit card purchases may require parents to upload receipts
+            in ClassWallet. DirectPay is the invoice-based path.
           </p>
         </div>
       </div>

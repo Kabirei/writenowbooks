@@ -1,3 +1,5 @@
+import ClassWalletGuide from "@/components/ClassWalletGuide";
+
 export default function ESA() {
   return (
     <main className="min-h-screen bg-black text-white px-6 py-16">
@@ -11,6 +13,8 @@ export default function ESA() {
           writing, reading, literacy, creativity, and structured educational
           projects through guided book creation.
         </p>
+
+        <ClassWalletGuide />
 
         <div className="space-y-6">
           <div className="border border-gray-700 rounded-xl p-6">
