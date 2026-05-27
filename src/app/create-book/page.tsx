@@ -17,10 +17,53 @@ function CreateBookContent() {
   const [tone, setTone] = useState("");
   const [audience, setAudience] = useState("");
   const [authorName, setAuthorName] = useState("");
-  const [imagesNeeded, setImagesNeeded] = useState("No");
+  const [imagesNeeded, setImagesNeeded] = useState("");
   const [extraInstructions, setExtraInstructions] = useState("");
   const [message, setMessage] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+
+  const bookTypes = [
+    "Children's Book",
+    "Educational Workbook",
+    "Story / Fiction",
+    "Nonfiction",
+    "Activity Book",
+    "Coloring Book",
+    "Self Help",
+    "Devotional",
+    "Business Book",
+    "Poetry",
+    "Comic / Graphic Story",
+    "Course / Training Book",
+    "Custom",
+  ];
+
+  const toneOptions = [
+    "Educational",
+    "Fun",
+    "Inspirational",
+    "Professional",
+    "Faith Based",
+    "Playful",
+    "Adventure",
+    "Humorous",
+    "Urban",
+    "Motivational",
+    "Serious",
+    "Storytelling",
+  ];
+
+  const toggleTone = (selectedTone: string) => {
+    const currentTones = tone
+      ? tone.split(", ").filter(Boolean)
+      : [];
+
+    const updatedTones = currentTones.includes(selectedTone)
+      ? currentTones.filter((item) => item !== selectedTone)
+      : [...currentTones, selectedTone];
+
+    setTone(updatedTones.join(", "));
+  };
 
   const handleContinue = async () => {
     const formData = {
@@ -151,8 +194,8 @@ function CreateBookContent() {
           </h1>
 
           <p className="text-lg text-gray-300 max-w-3xl">
-            Enter the details for your project below. This information will
-            guide your outline, manuscript structure, package selection, and
+            Choose the options that best describe your book project. This helps
+            WriteNowBooks guide your outline, manuscript structure, images, and
             final deliverables.
           </p>
 
@@ -172,120 +215,177 @@ function CreateBookContent() {
 
         <div className="grid gap-8 md:grid-cols-[1.5fr_0.8fr]">
           <section className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-            <div className="space-y-7">
+            <div className="space-y-8">
               <div>
-                <label className="block mb-2 font-medium">Book Type</label>
-                <input
-                  type="text"
-                  value={bookType}
-                  onChange={(e) => setBookType(e.target.value)}
-                  placeholder="Example: children's book, nonfiction, self-help, fiction"
-                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white"
-                />
+                <label className="block mb-4 font-medium text-xl">
+                  Book Type
+                </label>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {bookTypes.map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setBookType(type)}
+                      className={`p-3 rounded-xl border transition font-medium ${
+                        bookType === type
+                          ? "bg-yellow-400 text-black border-yellow-400"
+                          : "bg-black border-gray-700 hover:border-yellow-400"
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="block mb-2 font-medium">
+                <label className="block mb-2 font-medium text-xl">
                   Book Title or Main Idea
                 </label>
 
                 <textarea
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Enter your book title or describe the book you want created"
-                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white min-h-[150px]"
+                  placeholder="Enter your book title or briefly describe your book idea"
+                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white min-h-[130px]"
                 />
 
                 <p className="text-sm text-gray-400 mt-2">
-                  If you already have a title, enter it here. If not, describe
-                  your idea.
+                  This is the only main creative field you need to type. The rest
+                  can be selected quickly.
                 </p>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <div>
-                  <label className="block mb-2 font-medium">
-                    Estimated Page Count
-                  </label>
+              <div>
+                <label className="block mb-2 font-medium text-xl">
+                  Estimated Page Count
+                </label>
 
-                  <input
-                    type="text"
-                    value={pageCount}
-                    onChange={(e) => setPageCount(e.target.value)}
-                    placeholder="Example: 30 pages, 75 pages, 150 pages"
-                    className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block mb-2 font-medium">
-                    Tone / Style
-                  </label>
-
-                  <input
-                    type="text"
-                    value={tone}
-                    onChange={(e) => setTone(e.target.value)}
-                    placeholder="Example: professional, playful, inspiring"
-                    className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white"
-                  />
-                </div>
+                <select
+                  value={pageCount}
+                  onChange={(e) => setPageCount(e.target.value)}
+                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white"
+                >
+                  <option value="">Select page range</option>
+                  <option value="10–20 pages">10–20 pages</option>
+                  <option value="20–40 pages">20–40 pages</option>
+                  <option value="40–75 pages">40–75 pages</option>
+                  <option value="75–150 pages">75–150 pages</option>
+                  <option value="150–300 pages">150–300 pages</option>
+                  <option value="300+ pages">300+ pages</option>
+                  <option value="Not Sure">Not Sure</option>
+                </select>
               </div>
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <div>
-                  <label className="block mb-2 font-medium">
-                    Target Audience
-                  </label>
+              <div>
+                <label className="block mb-4 font-medium text-xl">
+                  Tone / Style
+                </label>
 
-                  <input
-                    type="text"
-                    value={audience}
-                    onChange={(e) => setAudience(e.target.value)}
-                    placeholder="Example: parents, entrepreneurs, children ages 4–8"
-                    className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white"
-                  />
-                </div>
+                <p className="text-gray-400 text-sm mb-4">
+                  You may choose more than one.
+                </p>
 
-                <div>
-                  <label className="block mb-2 font-medium">Author Name</label>
+                <div className="flex flex-wrap gap-3">
+                  {toneOptions.map((style) => {
+                    const selected = tone
+                      .split(", ")
+                      .filter(Boolean)
+                      .includes(style);
 
-                  <input
-                    type="text"
-                    value={authorName}
-                    onChange={(e) => setAuthorName(e.target.value)}
-                    placeholder="Name to appear on the book"
-                    className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white"
-                  />
+                    return (
+                      <button
+                        key={style}
+                        type="button"
+                        onClick={() => toggleTone(style)}
+                        className={`px-4 py-3 rounded-full border font-medium ${
+                          selected
+                            ? "bg-purple-600 border-purple-500 text-white"
+                            : "bg-black border-gray-700 hover:border-purple-500"
+                        }`}
+                      >
+                        {style}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               <div>
-                <label className="block mb-2 font-medium">
-                  Do you need images?
+                <label className="block mb-2 font-medium text-xl">
+                  Target Audience
+                </label>
+
+                <select
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value)}
+                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white"
+                >
+                  <option value="">Select audience</option>
+                  <option value="Toddlers (1–4)">Toddlers (1–4)</option>
+                  <option value="Children (5–8)">Children (5–8)</option>
+                  <option value="Pre-Teen">Pre-Teen</option>
+                  <option value="Teen">Teen</option>
+                  <option value="Young Adult">Young Adult</option>
+                  <option value="Adults">Adults</option>
+                  <option value="Families">Families</option>
+                  <option value="Homeschool Students">
+                    Homeschool Students
+                  </option>
+                  <option value="Entrepreneurs">Entrepreneurs</option>
+                  <option value="Faith Community">Faith Community</option>
+                  <option value="General Audience">General Audience</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block mb-2 font-medium text-xl">
+                  Author Name
+                </label>
+
+                <input
+                  type="text"
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                  placeholder="Name to appear on the book"
+                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white"
+                />
+              </div>
+
+              <div>
+                <label className="block mb-2 font-medium text-xl">
+                  AI Illustration Options
                 </label>
 
                 <select
                   value={imagesNeeded}
                   onChange={(e) => setImagesNeeded(e.target.value)}
-                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white"
+                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white"
                 >
-                  <option>No</option>
-                  <option>Yes</option>
-                  <option>Only if needed</option>
+                  <option value="">Select image option</option>
+                  <option value="AI Illustrations on Every Page">
+                    AI Illustrations on Every Page
+                  </option>
+                  <option value="AI Images for Key Pages">
+                    AI Images for Key Pages
+                  </option>
+                  <option value="Cover Image Only">Cover Image Only</option>
+                  <option value="No Images">No Images</option>
+                  <option value="Not Sure">Not Sure</option>
                 </select>
               </div>
 
               <div>
-                <label className="block mb-2 font-medium">
+                <label className="block mb-2 font-medium text-xl">
                   Extra Instructions
                 </label>
 
                 <textarea
                   value={extraInstructions}
                   onChange={(e) => setExtraInstructions(e.target.value)}
-                  placeholder="Add themes, chapter ideas, visual directions, character notes, citation needs, or anything else important"
-                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-3 text-white min-h-[170px]"
+                  placeholder="Add characters, themes, chapter ideas, visual directions, references, or anything else important"
+                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white min-h-[150px]"
                 />
               </div>
 
@@ -293,28 +393,28 @@ function CreateBookContent() {
                 type="button"
                 onClick={handleContinue}
                 disabled={isCreatingProject}
-                className="inline-block bg-white text-black px-6 py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-60"
+                className="w-full bg-yellow-400 text-black py-4 rounded-xl font-bold text-lg hover:bg-yellow-300 transition disabled:opacity-60"
               >
                 {isCreatingProject
                   ? "Creating Project..."
                   : isESA
-                  ? "Continue to Book Builder"
-                  : "Continue to Package Selection"}
+                  ? "Continue To Book Builder"
+                  : "Continue To Package Selection"}
               </button>
             </div>
           </section>
 
           <aside className="border border-gray-700 rounded-2xl p-8 bg-gray-950 h-fit">
             <h2 className="text-2xl font-semibold mb-5">
-              What You’ll Provide
+              Your Project Snapshot
             </h2>
 
             <ul className="space-y-4 text-gray-300 mb-8">
-              <li>• Your book title, main idea, and book type</li>
-              <li>• Your target page count</li>
-              <li>• Tone, audience, and author name</li>
-              <li>• Whether image generation is needed</li>
-              <li>• Any special guidance or instructions</li>
+              <li>• Book type: {bookType || "Not selected yet"}</li>
+              <li>• Page range: {pageCount || "Not selected yet"}</li>
+              <li>• Tone: {tone || "Not selected yet"}</li>
+              <li>• Audience: {audience || "Not selected yet"}</li>
+              <li>• Images: {imagesNeeded || "Not selected yet"}</li>
             </ul>
 
             <h3 className="text-xl font-semibold mb-4">What Happens Next</h3>
