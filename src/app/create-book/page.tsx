@@ -84,6 +84,36 @@ function CreateBookContent() {
     setTone(updatedTones.join(", "));
   };
 
+  const normalizePackagePlan = (packageChoice: string) => {
+    const cleanChoice = String(packageChoice || "").toLowerCase();
+
+    if (cleanChoice.includes("starter")) return "starter";
+    if (cleanChoice.includes("enhanced")) return "enhanced";
+    if (
+      cleanChoice.includes("premium") ||
+      cleanChoice.includes("longform") ||
+      cleanChoice.includes("long form")
+    ) {
+      return "premium";
+    }
+
+    return "premium";
+  };
+
+  const getPackageName = (packagePlan: string) => {
+    if (packagePlan === "starter") return "Starter";
+    if (packagePlan === "enhanced") return "Enhanced";
+    return "Premium Longform";
+  };
+
+  const getPackagePrice = (packagePlan: string, savedPrice?: string) => {
+    if (savedPrice && savedPrice !== "$0") return savedPrice;
+
+    if (packagePlan === "starter") return "$100.98";
+    if (packagePlan === "enhanced") return "$162.18";
+    return "$253.98";
+  };
+
   const getESARequestForProject = async () => {
     const localESARequest = JSON.parse(
       localStorage.getItem("esaRequest") || "{}"
@@ -94,6 +124,7 @@ function CreateBookContent() {
     const parentEmail =
       localESARequest.parentEmail ||
       localESARequest.parent_email ||
+      localESARequest.email ||
       "";
 
     if (parentEmail) {
@@ -108,25 +139,71 @@ function CreateBookContent() {
       if (!error && savedESARequest) {
         esaRequest = {
           ...localESARequest,
+          id: savedESARequest.id || localESARequest.id || "",
+          parentName:
+            savedESARequest.parent_name ||
+            localESARequest.parentName ||
+            localESARequest.parent_name ||
+            "",
           parentEmail:
             savedESARequest.parent_email ||
             localESARequest.parentEmail ||
+            localESARequest.parent_email ||
+            "",
+          parentPhone:
+            savedESARequest.parent_phone ||
+            localESARequest.parentPhone ||
+            localESARequest.parent_phone ||
+            "",
+          studentName:
+            savedESARequest.student_name ||
+            localESARequest.studentName ||
+            localESARequest.student_name ||
+            "",
+          studentEmail:
+            savedESARequest.student_email ||
+            localESARequest.studentEmail ||
+            localESARequest.student_email ||
+            "",
+          studentGrade:
+            savedESARequest.student_grade ||
+            localESARequest.studentGrade ||
+            localESARequest.student_grade ||
             "",
           packageChoice:
             savedESARequest.package_choice ||
             localESARequest.packageChoice ||
-            "Starter",
+            localESARequest.package_choice ||
+            "Premium Longform",
           packagePrice:
             savedESARequest.package_price ||
             localESARequest.packagePrice ||
-            "$0",
+            localESARequest.package_price ||
+            "",
           invoiceNumber:
             savedESARequest.invoice_number ||
             localESARequest.invoiceNumber ||
+            localESARequest.invoice_number ||
             "",
           invoiceStatus:
             savedESARequest.invoice_status ||
             localESARequest.invoiceStatus ||
+            localESARequest.invoice_status ||
+            "",
+          educationalPurpose:
+            savedESARequest.educational_purpose ||
+            localESARequest.educationalPurpose ||
+            localESARequest.educational_purpose ||
+            "",
+          serviceDates:
+            savedESARequest.service_dates ||
+            localESARequest.serviceDates ||
+            localESARequest.service_dates ||
+            "",
+          createdAt:
+            savedESARequest.created_at ||
+            localESARequest.createdAt ||
+            localESARequest.created_at ||
             "",
         };
 
@@ -168,30 +245,59 @@ function CreateBookContent() {
 
         const esaRequest = await getESARequestForProject();
 
-        const packageChoice = String(
-          esaRequest.packageChoice || "Starter"
-        ).toLowerCase();
+        const packagePlan = normalizePackagePlan(
+          esaRequest.packageChoice || esaRequest.package_choice || ""
+        );
 
-        const packagePlan = packageChoice.includes("starter")
-          ? "starter"
-          : packageChoice.includes("enhanced")
-          ? "enhanced"
-          : "premium";
+        const packageName = getPackageName(packagePlan);
 
-        const packageName =
-          packagePlan === "starter"
-            ? "Starter"
-            : packagePlan === "enhanced"
-            ? "Enhanced"
-            : "Premium Longform";
+        const packagePrice = getPackagePrice(
+          packagePlan,
+          esaRequest.packagePrice || esaRequest.package_price
+        );
 
-        const packagePrice =
-          esaRequest.packagePrice ||
-          (packagePlan === "starter"
-            ? "$100.98"
-            : packagePlan === "enhanced"
-            ? "$162.18"
-            : "$253.98");
+        const completeBookData = {
+          ...formData,
+
+          accessType: "ESA",
+          paymentStatus: "ESA Funded",
+
+          packageName: `${packageName} (ESA)`,
+          packagePrice: `${packagePrice} (ESA Funded)`,
+          packagePlan,
+
+          esaRequest,
+
+          esaRequestId: esaRequest.id || "",
+          esaParentName:
+            esaRequest.parentName || esaRequest.parent_name || "",
+          esaParentEmail:
+            esaRequest.parentEmail || esaRequest.parent_email || "",
+          esaParentPhone:
+            esaRequest.parentPhone || esaRequest.parent_phone || "",
+          esaStudentName:
+            esaRequest.studentName || esaRequest.student_name || "",
+          esaStudentEmail:
+            esaRequest.studentEmail || esaRequest.student_email || "",
+          esaStudentGrade:
+            esaRequest.studentGrade || esaRequest.student_grade || "",
+          esaPackageChoice:
+            esaRequest.packageChoice ||
+            esaRequest.package_choice ||
+            packageName,
+          esaPackagePrice: packagePrice,
+          esaPackagePlan: packagePlan,
+          esaInvoiceNumber:
+            esaRequest.invoiceNumber || esaRequest.invoice_number || "",
+          esaInvoiceStatus:
+            esaRequest.invoiceStatus || esaRequest.invoice_status || "",
+          esaEducationalPurpose:
+            esaRequest.educationalPurpose ||
+            esaRequest.educational_purpose ||
+            "",
+          esaServiceDates:
+            esaRequest.serviceDates || esaRequest.service_dates || "",
+        };
 
         const { data, error } = await supabase
           .from("projects")
@@ -202,15 +308,7 @@ function CreateBookContent() {
             package_price: `${packagePrice} (ESA Funded)`,
             package_plan: packagePlan,
             status: "ACTIVE",
-            book_data: {
-              ...formData,
-              accessType: "ESA",
-              paymentStatus: "ESA Funded",
-              esaParentEmail: esaRequest.parentEmail || "",
-              esaPackageChoice: esaRequest.packageChoice || packageName,
-              esaInvoiceNumber: esaRequest.invoiceNumber || "",
-              esaInvoiceStatus: esaRequest.invoiceStatus || "",
-            },
+            book_data: completeBookData,
           })
           .select()
           .single();
@@ -231,7 +329,7 @@ function CreateBookContent() {
           packagePlan,
           status: "ACTIVE",
           createdAt: new Date().toISOString(),
-          bookData: formData,
+          bookData: completeBookData,
         };
 
         localStorage.setItem(

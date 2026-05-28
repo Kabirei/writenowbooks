@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { supabase } from "@/lib/supabaseClient";
 
 import {
   saveOutline as saveOutlineDB,
@@ -26,6 +27,20 @@ type BookFormData = {
   authorName: string;
   imagesNeeded: string;
   extraInstructions: string;
+  accessType?: string;
+  paymentStatus?: string;
+  packageName?: string;
+  packagePrice?: string;
+  packagePlan?: string;
+  esaRequest?: Record<string, any>;
+  esaParentName?: string;
+  esaParentEmail?: string;
+  esaStudentName?: string;
+  esaStudentGrade?: string;
+  esaPackageChoice?: string;
+  esaPackagePrice?: string;
+  esaInvoiceNumber?: string;
+  esaInvoiceStatus?: string;
 };
 
 type SavedOrder = {
@@ -137,6 +152,144 @@ const EMPTY_USAGE: Usage = {
   cover: 0,
 };
 
+const normalizePackagePlan = (rawPlan?: string, rawName?: string) => {
+  const value = `${rawPlan || ""} ${rawName || ""}`.toLowerCase();
+
+  if (value.includes("premium") || value.includes("longform")) {
+    return "premium";
+  }
+
+  if (value.includes("enhanced")) {
+    return "enhanced";
+  }
+
+  return "starter";
+};
+
+const packageDisplayName = (plan: string, fallbackName?: string) => {
+  if (fallbackName && !fallbackName.toLowerCase().includes("starter")) {
+    return fallbackName;
+  }
+
+  if (plan === "premium") return "Premium Longform (ESA)";
+  if (plan === "enhanced") return "Enhanced (ESA)";
+  return fallbackName || "Starter";
+};
+
+const normalizeBookData = (bookData: any): BookFormData => {
+  const esaRequest = bookData?.esaRequest || {};
+
+  return {
+    bookType: bookData?.bookType || "",
+    topic: bookData?.topic || "",
+    pageCount: bookData?.pageCount || "",
+    tone: bookData?.tone || "",
+    audience: bookData?.audience || "",
+    authorName: bookData?.authorName || "",
+    imagesNeeded: bookData?.imagesNeeded || "",
+    extraInstructions: bookData?.extraInstructions || "",
+    accessType: bookData?.accessType || "",
+    paymentStatus: bookData?.paymentStatus || "",
+    packageName: bookData?.packageName || "",
+    packagePrice: bookData?.packagePrice || "",
+    packagePlan: bookData?.packagePlan || "",
+    esaRequest,
+    esaParentName:
+      bookData?.esaParentName ||
+      esaRequest?.parentName ||
+      esaRequest?.parent_name ||
+      "",
+    esaParentEmail:
+      bookData?.esaParentEmail ||
+      esaRequest?.parentEmail ||
+      esaRequest?.parent_email ||
+      "",
+    esaStudentName:
+      bookData?.esaStudentName ||
+      esaRequest?.studentName ||
+      esaRequest?.student_name ||
+      "",
+    esaStudentGrade:
+      bookData?.esaStudentGrade ||
+      esaRequest?.studentGrade ||
+      esaRequest?.student_grade ||
+      "",
+    esaPackageChoice:
+      bookData?.esaPackageChoice ||
+      esaRequest?.packageChoice ||
+      esaRequest?.package_choice ||
+      "",
+    esaPackagePrice:
+      bookData?.esaPackagePrice ||
+      esaRequest?.packagePrice ||
+      esaRequest?.package_price ||
+      "",
+    esaInvoiceNumber:
+      bookData?.esaInvoiceNumber ||
+      esaRequest?.invoiceNumber ||
+      esaRequest?.invoice_number ||
+      "",
+    esaInvoiceStatus:
+      bookData?.esaInvoiceStatus ||
+      esaRequest?.invoiceStatus ||
+      esaRequest?.invoice_status ||
+      "",
+  };
+};
+
+const normalizeProject = (rawProject: any): SavedOrder | null => {
+  if (!rawProject) return null;
+
+  const rawBookData = rawProject.book_data || rawProject.bookData || {};
+  const bookData = normalizeBookData(rawBookData);
+
+  const rawPlan =
+    rawProject.package_plan ||
+    rawProject.packagePlan ||
+    bookData.packagePlan ||
+    bookData.esaPackageChoice ||
+    rawProject.package_name ||
+    rawProject.packageName ||
+    "starter";
+
+  const plan = normalizePackagePlan(
+    rawPlan,
+    rawProject.package_name || rawProject.packageName || bookData.packageName
+  );
+
+  const packageName = packageDisplayName(
+    plan,
+    rawProject.package_name || rawProject.packageName || bookData.packageName
+  );
+
+  const packagePrice =
+    rawProject.package_price ||
+    rawProject.packagePrice ||
+    bookData.packagePrice ||
+    bookData.esaPackagePrice ||
+    (plan === "premium"
+      ? "$253.98 (ESA Funded)"
+      : plan === "enhanced"
+      ? "$162.18 (ESA Funded)"
+      : "$100.98 (ESA Funded)");
+
+  return {
+    id: rawProject.id,
+    paymentId: rawProject.payment_id || rawProject.paymentId || "ESA-FUNDED",
+    packageName,
+    packagePrice,
+    packagePlan: plan,
+    status: rawProject.status || "ACTIVE",
+    createdAt: rawProject.created_at || rawProject.createdAt || "",
+    bookData: {
+      ...bookData,
+      packageName,
+      packagePrice,
+      packagePlan: plan,
+    },
+  };
+};
+
 export default function ProjectDetailPage() {
   const params = useParams();
 
@@ -182,82 +335,48 @@ export default function ProjectDetailPage() {
         return;
       }
 
-      const orders: SavedOrder[] = JSON.parse(
-localStorage.getItem("writeNowOrders") || "[]"
-);
+      let foundProject: SavedOrder | null = null;
 
-let foundProject =
-orders.find(
-(order)=>order.id===id
-)||null;
+      // Supabase is the source of truth. LocalStorage is only a backup.
+      try {
+        const { data, error } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("id", id)
+          .single();
 
+        if (!error && data) {
+          foundProject = normalizeProject(data);
+        }
+      } catch (error) {
+        console.log("Supabase project lookup failed:", error);
+      }
 
-/* NEW:
-if local backup missing,
-check Supabase */
+      if (!foundProject) {
+        const orders: SavedOrder[] = JSON.parse(
+          localStorage.getItem("writeNowOrders") || "[]"
+        );
 
-if(!foundProject){
+        foundProject =
+          normalizeProject(orders.find((order) => order.id === id)) || null;
+      }
 
-try{
+      setProject(foundProject);
 
-const { data } =
-await supabase
-.from("projects")
-.select("*")
-.eq("id",id)
-.single();
+      if (!foundProject) {
+        setLoading(false);
+        return;
+      }
 
-if(data){
-
-foundProject={
-
-id:data.id,
-
-paymentId:
-data.payment_id || "ESA",
-
-packageName:
-data.package_name || "ESA Student",
-
-packagePrice:
-data.package_price || "$0",
-
-packagePlan:
-data.package_plan || "premium",
-
-status:
-data.status || "ACTIVE",
-
-createdAt:
-data.created_at,
-
-bookData:
-data.book_data
-
-};
-
-}
-
-}catch(error){
-
-console.log(
-"supabase lookup failed",
-error
-);
-
-}
-
-}
-
-setProject(foundProject);
-
-if(!foundProject){
-
-setLoading(false);
-
-return;
-
-}
+      // Refresh the local backup with the normalized Supabase project.
+      const existingOrders: SavedOrder[] = JSON.parse(
+        localStorage.getItem("writeNowOrders") || "[]"
+      );
+      const filteredOrders = existingOrders.filter((order) => order.id !== id);
+      localStorage.setItem(
+        "writeNowOrders",
+        JSON.stringify([foundProject, ...filteredOrders])
+      );
 
       try {
         const dbOutline = await getOutline(id);
@@ -398,7 +517,9 @@ return;
 
   const currentLimits = () => {
     if (!project) return LIMITS.starter;
-    return LIMITS[project.packagePlan.toLowerCase()] || LIMITS.starter;
+
+    const plan = normalizePackagePlan(project.packagePlan, project.packageName);
+    return LIMITS[plan] || LIMITS.starter;
   };
 
   const usageLabel = (type: keyof Usage) => {
@@ -410,7 +531,7 @@ return;
   const planAllowsChapterImages = () => {
     if (!project) return false;
 
-    const plan = project.packagePlan.toLowerCase();
+    const plan = normalizePackagePlan(project.packagePlan, project.packageName);
 
     return plan === "enhanced" || plan === "premium";
   };
