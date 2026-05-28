@@ -21,26 +21,27 @@ function CreateBookContent() {
   const [extraInstructions, setExtraInstructions] = useState("");
   const [message, setMessage] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+
   useEffect(() => {
-  const savedForm = localStorage.getItem("writeNowBookForm");
+    const savedForm = localStorage.getItem("writeNowBookForm");
 
-  if (!savedForm) return;
+    if (!savedForm) return;
 
-  try {
-    const parsed = JSON.parse(savedForm);
+    try {
+      const parsed = JSON.parse(savedForm);
 
-    setBookType(parsed.bookType || "");
-    setTopic(parsed.topic || "");
-    setPageCount(parsed.pageCount || "");
-    setTone(parsed.tone || "");
-    setAudience(parsed.audience || "");
-    setAuthorName(parsed.authorName || "");
-    setImagesNeeded(parsed.imagesNeeded || "");
-    setExtraInstructions(parsed.extraInstructions || "");
-  } catch (error) {
-    console.error("Unable to restore saved form:", error);
-  }
-}, []);
+      setBookType(parsed.bookType || "");
+      setTopic(parsed.topic || "");
+      setPageCount(parsed.pageCount || "");
+      setTone(parsed.tone || "");
+      setAudience(parsed.audience || "");
+      setAuthorName(parsed.authorName || "");
+      setImagesNeeded(parsed.imagesNeeded || "");
+      setExtraInstructions(parsed.extraInstructions || "");
+    } catch (error) {
+      console.error("Unable to restore saved form:", error);
+    }
+  }, []);
 
   const bookTypes = [
     "Children's Book",
@@ -74,15 +75,66 @@ function CreateBookContent() {
   ];
 
   const toggleTone = (selectedTone: string) => {
-    const currentTones = tone
-      ? tone.split(", ").filter(Boolean)
-      : [];
+    const currentTones = tone ? tone.split(", ").filter(Boolean) : [];
 
     const updatedTones = currentTones.includes(selectedTone)
       ? currentTones.filter((item) => item !== selectedTone)
       : [...currentTones, selectedTone];
 
     setTone(updatedTones.join(", "));
+  };
+
+  const getESARequestForProject = async () => {
+    const localESARequest = JSON.parse(
+      localStorage.getItem("esaRequest") || "{}"
+    );
+
+    let esaRequest = localESARequest;
+
+    const parentEmail =
+      localESARequest.parentEmail ||
+      localESARequest.parent_email ||
+      "";
+
+    if (parentEmail) {
+      const { data: savedESARequest, error } = await supabase
+        .from("esa_requests")
+        .select("*")
+        .eq("parent_email", parentEmail)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!error && savedESARequest) {
+        esaRequest = {
+          ...localESARequest,
+          parentEmail:
+            savedESARequest.parent_email ||
+            localESARequest.parentEmail ||
+            "",
+          packageChoice:
+            savedESARequest.package_choice ||
+            localESARequest.packageChoice ||
+            "Starter",
+          packagePrice:
+            savedESARequest.package_price ||
+            localESARequest.packagePrice ||
+            "$0",
+          invoiceNumber:
+            savedESARequest.invoice_number ||
+            localESARequest.invoiceNumber ||
+            "",
+          invoiceStatus:
+            savedESARequest.invoice_status ||
+            localESARequest.invoiceStatus ||
+            "",
+        };
+
+        localStorage.setItem("esaRequest", JSON.stringify(esaRequest));
+      }
+    }
+
+    return esaRequest;
   };
 
   const handleContinue = async () => {
@@ -109,18 +161,12 @@ function CreateBookContent() {
         const user = await getCurrentUser();
 
         if (!user) {
-  setMessage("Please create or log into your account to continue.");
+          setMessage("Please create or log into your account to continue.");
+          router.push("/login?redirect=/create-book?esa=true");
+          return;
+        }
 
-  router.push(
-    "/login?redirect=/create-book?esa=true"
-  );
-
-  return;
-}
-
-        const esaRequest = JSON.parse(
-          localStorage.getItem("esaRequest") || "{}"
-        );
+        const esaRequest = await getESARequestForProject();
 
         const packageChoice = String(
           esaRequest.packageChoice || "Starter"
@@ -139,13 +185,21 @@ function CreateBookContent() {
             ? "Enhanced"
             : "Premium Longform";
 
+        const packagePrice =
+          esaRequest.packagePrice ||
+          (packagePlan === "starter"
+            ? "$100.98"
+            : packagePlan === "enhanced"
+            ? "$162.18"
+            : "$253.98");
+
         const { data, error } = await supabase
           .from("projects")
           .insert({
             user_id: user.id,
             payment_id: "ESA-FUNDED",
             package_name: `${packageName} (ESA)`,
-            package_price: `${esaRequest.packagePrice || "$0"} (ESA Funded)`,
+            package_price: `${packagePrice} (ESA Funded)`,
             package_plan: packagePlan,
             status: "ACTIVE",
             book_data: {
@@ -154,6 +208,8 @@ function CreateBookContent() {
               paymentStatus: "ESA Funded",
               esaParentEmail: esaRequest.parentEmail || "",
               esaPackageChoice: esaRequest.packageChoice || packageName,
+              esaInvoiceNumber: esaRequest.invoiceNumber || "",
+              esaInvoiceStatus: esaRequest.invoiceStatus || "",
             },
           })
           .select()
@@ -171,7 +227,7 @@ function CreateBookContent() {
           id: data.id,
           paymentId: "ESA-FUNDED",
           packageName: `${packageName} (ESA)`,
-          packagePrice: `${esaRequest.packagePrice || "$0"} (ESA Funded)`,
+          packagePrice: `${packagePrice} (ESA Funded)`,
           packagePlan,
           status: "ACTIVE",
           createdAt: new Date().toISOString(),
