@@ -13,11 +13,28 @@ type StudentProject = {
   };
 };
 
+type ESARequest = {
+  parentEmail?: string;
+  studentName?: string;
+  packageChoice?: string;
+  packagePrice?: string;
+  topic?: string;
+  bookTitle?: string;
+  pageCount?: string;
+  bookType?: string;
+  audience?: string;
+  tone?: string;
+  imagesNeeded?: string;
+  bookDescription?: string;
+  educationalPurpose?: string;
+};
+
 export default function Page() {
   const router = useRouter();
 
   const [studentAccess, setStudentAccess] = useState<boolean | null>(null);
   const [project, setProject] = useState<StudentProject | null>(null);
+  const [esaRequest, setEsaRequest] = useState<ESARequest | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,6 +47,7 @@ export default function Page() {
     }
 
     const parsed = JSON.parse(request);
+    setEsaRequest(parsed);
 
     Promise.all([
       fetch("/api/student/access", {
@@ -58,7 +76,40 @@ export default function Page() {
 
         setStudentAccess(Boolean(access.success && access.studentAccess));
 
-        if (projectData.success) {
+        const updatedESARequest = {
+          ...parsed,
+          parentEmail: parsed.parentEmail || access.parentEmail || "",
+          parentName: access.parentName || parsed.parentName || "",
+          parentPhone: access.parentPhone || parsed.parentPhone || "",
+          studentName: access.studentName || parsed.studentName || "",
+          studentEmail: access.studentEmail || parsed.studentEmail || "",
+          studentGrade: access.studentGrade || parsed.studentGrade || "",
+          packageChoice:
+            access.packageChoice || parsed.packageChoice || "Premium Longform",
+          packagePrice: access.packagePrice || parsed.packagePrice || "",
+          invoiceNumber: access.invoiceNumber || parsed.invoiceNumber || "",
+          invoiceStatus: access.invoiceStatus || parsed.invoiceStatus || "",
+          topic: access.topic || access.bookTitle || parsed.topic || "",
+          bookTitle: access.bookTitle || access.topic || parsed.bookTitle || "",
+          pageCount: access.pageCount || parsed.pageCount || "",
+          bookType: access.bookType || parsed.bookType || "",
+          audience: access.audience || parsed.audience || "",
+          tone: access.tone || parsed.tone || "",
+          imagesNeeded: access.imagesNeeded || parsed.imagesNeeded || "",
+          bookDescription:
+            access.bookDescription ||
+            access.description ||
+            access.educationalPurpose ||
+            parsed.bookDescription ||
+            "",
+          educationalPurpose:
+            access.educationalPurpose || parsed.educationalPurpose || "",
+        };
+
+        localStorage.setItem("esaRequest", JSON.stringify(updatedESARequest));
+        setEsaRequest(updatedESARequest);
+
+        if (projectData.success && projectData.project) {
           setProject(projectData.project);
         }
       })
@@ -70,6 +121,30 @@ export default function Page() {
         setLoading(false);
       });
   }, []);
+
+  const beginProject = () => {
+    if (esaRequest) {
+      const starterForm = {
+        bookType: esaRequest.bookType || "Children's Book",
+        topic: esaRequest.topic || esaRequest.bookTitle || "",
+        pageCount: esaRequest.pageCount || "",
+        tone: esaRequest.tone || "",
+        audience: esaRequest.audience || "",
+        authorName: esaRequest.studentName || "",
+        imagesNeeded: esaRequest.imagesNeeded || "",
+        extraInstructions:
+          esaRequest.bookDescription ||
+          esaRequest.educationalPurpose ||
+          "",
+        accessType: "ESA Funded",
+        paymentStatus: "ESA Funded",
+      };
+
+      localStorage.setItem("writeNowBookForm", JSON.stringify(starterForm));
+    }
+
+    router.push("/create-book?esa=true");
+  };
 
   if (loading) {
     return (
@@ -84,7 +159,6 @@ export default function Page() {
       <main className="min-h-screen bg-black text-white px-6 py-16">
         <div className="max-w-3xl mx-auto bg-gray-950 border border-gray-700 rounded-2xl p-10 text-center">
           <h1 className="text-4xl font-bold mb-6">Funding Pending</h1>
-
           <p className="text-gray-300 text-lg">
             Your ESA request has not yet been funded.
           </p>
@@ -142,9 +216,7 @@ export default function Page() {
                   <div className="w-full bg-gray-800 rounded-full h-4 overflow-hidden">
                     <div
                       className="bg-yellow-400 h-4 rounded-full transition-all duration-700"
-                      style={{
-                        width: getProgressWidth(project.status),
-                      }}
+                      style={{ width: getProgressWidth(project.status) }}
                     />
                   </div>
 
@@ -154,9 +226,7 @@ export default function Page() {
                 </div>
 
                 <button
-                  onClick={() => {
-                    router.push(`/projects/${project.id}`);
-                  }}
+                  onClick={() => router.push(`/projects/${project.id}`)}
                   className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl"
                 >
                   Continue Project
@@ -164,42 +234,33 @@ export default function Page() {
               </>
             ) : (
               <>
-                <p className="text-gray-400 mb-6">No project found.</p>
+                <p className="text-green-300 mb-3">
+                  Funded ESA request found.
+                </p>
+
+                <p className="text-gray-300 mb-2">
+                  Student: {esaRequest?.studentName || "Student"}
+                </p>
+
+                <p className="text-gray-300 mb-2">
+                  Package: {esaRequest?.packageChoice || "Premium Longform"}
+                </p>
+
+                <p className="text-gray-300 mb-6">
+                  Book Idea:{" "}
+                  {esaRequest?.topic ||
+                    esaRequest?.bookTitle ||
+                    "Ready to begin"}
+                </p>
 
                 <button
-                  onClick={() => {
-                    router.push("/create-book?esa=true");
-                  }}
+                  onClick={beginProject}
                   className="bg-yellow-400 text-black font-bold px-6 py-3 rounded-xl"
                 >
                   Begin Project
                 </button>
               </>
             )}
-          </div>
-
-          <div className="bg-gray-950 border border-gray-700 rounded-2xl p-8">
-            <h2 className="text-2xl font-bold mb-6">Quick Actions</h2>
-
-            <div className="flex gap-4 flex-wrap">
-              <button
-                onClick={() => {
-                  router.push("/dashboard");
-                }}
-                className="bg-blue-600 px-5 py-3 rounded-xl font-bold"
-              >
-                Dashboard
-              </button>
-
-              <button
-                onClick={() => {
-                  router.push("/account");
-                }}
-                className="bg-purple-600 px-5 py-3 rounded-xl font-bold"
-              >
-                Account
-              </button>
-            </div>
           </div>
         </div>
       </div>

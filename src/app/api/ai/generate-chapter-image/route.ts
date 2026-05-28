@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 type CharacterInfo = {
   name?: string;
   description?: string;
@@ -25,7 +28,7 @@ function createFallbackImageSvg(prompt: string, chapterTitle: string) {
   <rect width="1024" height="1024" fill="#111827"/>
   <rect x="70" y="70" width="884" height="884" rx="40" fill="none" stroke="#facc15" stroke-width="6"/>
   <text x="512" y="190" text-anchor="middle" font-family="Georgia" font-size="38" fill="#facc15">
-    CHAPTER IMAGE
+    IMAGE PREVIEW
   </text>
   <text x="512" y="330" text-anchor="middle" font-family="Georgia" font-size="48" font-weight="700" fill="#ffffff">
     ${safeTitle}
@@ -94,7 +97,9 @@ function buildCharacterBlock(characters: CharacterInfo[]) {
   if (!Array.isArray(characters) || characters.length === 0) {
     return `
 CHARACTER CONSISTENCY:
-If characters are present in the scene, keep them visually consistent across the book. Maintain the same age, skin tone, hairstyle, clothing style, body shape, facial features, and personality from image to image.
+If characters are present, keep them visually consistent across the whole book.
+Maintain the same age, skin tone, hairstyle, clothing, body shape, facial features, and personality from image to image.
+Do not redesign the main character.
 `;
   }
 
@@ -111,13 +116,21 @@ ${characters
 `;
 }
 
+function timeoutPromise(ms: number) {
+  return new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error("Image generation timed out. Fallback preview created."));
+    }, ms);
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const apiKey = process.env.OPENAI_API_KEY;
     const body = await request.json();
 
     const prompt: string = body.prompt;
-    const chapterTitle: string = body.chapterTitle || "Untitled Chapter";
+    const chapterTitle: string = body.chapterTitle || "Untitled Image";
     const projectId: string | undefined = body.projectId;
 
     const characters: CharacterInfo[] = Array.isArray(body.characters)
@@ -127,16 +140,16 @@ export async function POST(request: Request) {
     const style: string =
       typeof body.style === "string" && body.style.trim()
         ? body.style
-        : "children’s book illustration, warm, polished, vibrant, highly detailed, emotionally expressive, clean composition";
+        : "children’s book illustration, warm, polished, vibrant, emotionally expressive, clean composition, consistent character design";
 
     if (!prompt) {
       return NextResponse.json({
         success: false,
-        message: "Invalid chapter image request.",
+        message: "Invalid image request.",
       });
     }
 
-    let imageBase64: string;
+    let imageBase64 = "";
     let mimeType = "image/png";
     let fallback = false;
 
@@ -150,33 +163,37 @@ export async function POST(request: Request) {
         const client = new OpenAI({ apiKey });
 
         const finalPrompt = `
-Create a professional book illustration.
+Create a professional children's book illustration.
 
 STYLE LOCK:
 ${style}
 
 ${buildCharacterBlock(characters)}
 
-CHAPTER:
+IMAGE TITLE:
 ${chapterTitle}
 
 SCENE:
 ${prompt}
 
-RULES:
-- No text.
+STRICT RULES:
+- No text inside the image.
 - No watermark.
+- No logos.
 - No distorted hands or faces.
-- Keep the same visual style across the whole book.
+- Keep the same art style across the entire book.
 - Keep characters consistent with the descriptions above.
-- Make the scene clear, polished, and suitable for publishing.
+- Make the scene clear, polished, child-friendly, and suitable for publishing.
 `;
 
-        const image = await client.images.generate({
-          model: "gpt-image-1",
-          prompt: finalPrompt,
-          size: "1024x1024",
-        });
+        const image = await Promise.race([
+          client.images.generate({
+            model: "gpt-image-1",
+            prompt: finalPrompt,
+            size: "1024x1024",
+          }),
+          timeoutPromise(45000),
+        ]);
 
         imageBase64 = image.data?.[0]?.b64_json || "";
 
@@ -187,7 +204,7 @@ RULES:
           fallback = true;
         }
       } catch (error) {
-        console.error("Chapter image provider error:", error);
+        console.error("Image provider error:", error);
 
         const fallbackImage = createFallbackImageSvg(prompt, chapterTitle);
         imageBase64 = fallbackImage.image;
@@ -208,19 +225,25 @@ RULES:
       imageUrl,
       mimeType,
       fallback,
-      message: imageUrl
-        ? "Chapter image generated and saved successfully."
-        : "Chapter image generated successfully, but storage upload was skipped or failed.",
+      message: fallback
+        ? "Image preview created because AI image generation took too long."
+        : "Image generated and saved successfully.",
     });
   } catch (error) {
-    console.error("Chapter image route error:", error);
+    console.error("Image route error:", error);
+
+    const fallbackImage = createFallbackImageSvg(
+      "Image generation could not complete.",
+      "Fallback Image"
+    );
 
     return NextResponse.json({
-      success: false,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Unable to generate chapter image.",
+      success: true,
+      image: fallbackImage.image,
+      imageUrl: null,
+      mimeType: fallbackImage.mimeType,
+      fallback: true,
+      message: "Fallback image preview created.",
     });
   }
 }

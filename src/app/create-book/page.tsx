@@ -19,29 +19,12 @@ function CreateBookContent() {
   const [authorName, setAuthorName] = useState("");
   const [imagesNeeded, setImagesNeeded] = useState("");
   const [extraInstructions, setExtraInstructions] = useState("");
+  const [extraInstructionSelections, setExtraInstructionSelections] = useState<
+    string[]
+  >([]);
+  const [customExtraInstructions, setCustomExtraInstructions] = useState("");
   const [message, setMessage] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
-
-  useEffect(() => {
-    const savedForm = localStorage.getItem("writeNowBookForm");
-
-    if (!savedForm) return;
-
-    try {
-      const parsed = JSON.parse(savedForm);
-
-      setBookType(parsed.bookType || "");
-      setTopic(parsed.topic || "");
-      setPageCount(parsed.pageCount || "");
-      setTone(parsed.tone || "");
-      setAudience(parsed.audience || "");
-      setAuthorName(parsed.authorName || "");
-      setImagesNeeded(parsed.imagesNeeded || "");
-      setExtraInstructions(parsed.extraInstructions || "");
-    } catch (error) {
-      console.error("Unable to restore saved form:", error);
-    }
-  }, []);
 
   const bookTypes = [
     "Children's Book",
@@ -74,6 +57,102 @@ function CreateBookContent() {
     "Storytelling",
   ];
 
+  const guidedInstructionGroups = [
+    {
+      title: "Main Character Ideas",
+      options: [
+        "Use one main character throughout the whole book.",
+        "Keep all characters visually consistent from page to page.",
+        "Make the main character brave, kind, and curious.",
+        "Make the main character learn an important lesson.",
+        "Include a best friend or helper character.",
+        "Include a parent, teacher, grandparent, or mentor.",
+        "Include an animal companion.",
+      ],
+    },
+    {
+      title: "Character Appearance",
+      options: [
+        "Describe the main character clearly before generating images.",
+        "Keep the same hairstyle, clothing, skin tone, and facial features in every image.",
+        "Use bright, friendly children’s book character designs.",
+        "Use expressive faces that show emotion clearly.",
+        "Make the characters look age-appropriate for children.",
+      ],
+    },
+    {
+      title: "Story Themes",
+      options: [
+        "Teach kindness and respect.",
+        "Teach confidence and self-belief.",
+        "Teach patience and listening.",
+        "Teach family love and togetherness.",
+        "Teach courage and overcoming fear.",
+        "Teach responsibility and making good choices.",
+        "Teach friendship and teamwork.",
+        "Teach gratitude and thankfulness.",
+      ],
+    },
+    {
+      title: "Story Setting",
+      options: [
+        "Set the story at home.",
+        "Set the story at school.",
+        "Set the story at a park or playground.",
+        "Set the story in nature.",
+        "Set the story in a neighborhood.",
+        "Set the story in a magical or imaginative world.",
+        "Use peaceful, colorful backgrounds.",
+      ],
+    },
+    {
+      title: "Book Style",
+      options: [
+        "Make the story simple enough for young children.",
+        "Use short sentences on each page.",
+        "Make every page easy to understand.",
+        "Make the story warm, emotional, and inspiring.",
+        "Make the book fun and playful.",
+        "Make the ending positive and memorable.",
+        "Add gentle humor where appropriate.",
+      ],
+    },
+    {
+      title: "Illustration Direction",
+      options: [
+        "Create illustrations for every page.",
+        "Use a consistent art style across the whole book.",
+        "Make images colorful, polished, and child-friendly.",
+        "Avoid scary, dark, or confusing images.",
+        "Make each image match the words on that page.",
+        "Do not include text inside the images.",
+      ],
+    },
+  ];
+
+  useEffect(() => {
+    const savedForm = localStorage.getItem("writeNowBookForm");
+
+    if (!savedForm) return;
+
+    try {
+      const parsed = JSON.parse(savedForm);
+
+      setBookType(parsed.bookType || "");
+      setTopic(parsed.topic || "");
+      setPageCount(parsed.pageCount || "");
+      setTone(parsed.tone || "");
+      setAudience(parsed.audience || "");
+      setAuthorName(parsed.authorName || "");
+      setImagesNeeded(parsed.imagesNeeded || "");
+      setExtraInstructions(parsed.extraInstructions || "");
+      setExtraInstructionSelections(parsed.extraInstructionSelections || []);
+      setCustomExtraInstructions(parsed.customExtraInstructions || "");
+    } catch (error) {
+      console.error("Unable to restore saved form:", error);
+    }
+  }, []);
+
   const toggleTone = (selectedTone: string) => {
     const currentTones = tone ? tone.split(", ").filter(Boolean) : [];
 
@@ -82,6 +161,36 @@ function CreateBookContent() {
       : [...currentTones, selectedTone];
 
     setTone(updatedTones.join(", "));
+  };
+
+  const toggleExtraInstruction = (option: string) => {
+    setExtraInstructionSelections((current) =>
+      current.includes(option)
+        ? current.filter((item) => item !== option)
+        : [...current, option]
+    );
+  };
+
+  const buildFinalExtraInstructions = () => {
+    const sections: string[] = [];
+
+    if (extraInstructionSelections.length > 0) {
+      sections.push(
+        `Guided selections:\n${extraInstructionSelections
+          .map((item) => `- ${item}`)
+          .join("\n")}`
+      );
+    }
+
+    if (customExtraInstructions.trim()) {
+      sections.push(`Custom instructions:\n${customExtraInstructions.trim()}`);
+    }
+
+    if (!sections.length && extraInstructions.trim()) {
+      sections.push(extraInstructions.trim());
+    }
+
+    return sections.join("\n\n").trim();
   };
 
   const normalizePackagePlan = (packageChoice: string) => {
@@ -215,6 +324,8 @@ function CreateBookContent() {
   };
 
   const handleContinue = async () => {
+    const finalExtraInstructions = buildFinalExtraInstructions();
+
     const formData = {
       bookType,
       topic,
@@ -223,11 +334,14 @@ function CreateBookContent() {
       audience,
       authorName,
       imagesNeeded,
-      extraInstructions,
+      extraInstructions: finalExtraInstructions,
+      extraInstructionSelections,
+      customExtraInstructions,
       accessType: isESA ? "ESA Funded" : "Standard",
       paymentStatus: isESA ? "ESA Funded" : "Pending Checkout",
     };
 
+    setExtraInstructions(finalExtraInstructions);
     localStorage.setItem("writeNowBookForm", JSON.stringify(formData));
 
     if (isESA) {
@@ -430,8 +544,8 @@ function CreateBookContent() {
                 />
 
                 <p className="text-sm text-gray-400 mt-2">
-                  This is the only main creative field you need to type. The rest
-                  can be selected quickly.
+                  This is the main creative field. The guided options below help
+                  the AI understand the rest.
                 </p>
               </div>
 
@@ -559,12 +673,59 @@ function CreateBookContent() {
                   Extra Instructions
                 </label>
 
-                <textarea
-                  value={extraInstructions}
-                  onChange={(e) => setExtraInstructions(e.target.value)}
-                  placeholder="Add characters, themes, chapter ideas, visual directions, references, or anything else important"
-                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white min-h-[150px]"
-                />
+                <p className="text-gray-400 text-sm mb-4">
+                  Choose any options that fit your book. These selections are
+                  saved and sent to the AI when it builds the outline, pages,
+                  chapters, and image prompts.
+                </p>
+
+                <div className="space-y-6">
+                  {guidedInstructionGroups.map((group) => (
+                    <div
+                      key={group.title}
+                      className="rounded-2xl border border-gray-800 bg-black/40 p-5"
+                    >
+                      <h3 className="text-lg font-semibold mb-4">
+                        {group.title}
+                      </h3>
+
+                      <div className="flex flex-wrap gap-3">
+                        {group.options.map((option) => {
+                          const selected =
+                            extraInstructionSelections.includes(option);
+
+                          return (
+                            <button
+                              key={option}
+                              type="button"
+                              onClick={() => toggleExtraInstruction(option)}
+                              className={`px-4 py-3 rounded-full border text-sm font-medium transition ${
+                                selected
+                                  ? "bg-yellow-400 text-black border-yellow-400"
+                                  : "bg-black border-gray-700 hover:border-yellow-400 text-white"
+                              }`}
+                            >
+                              {option}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="mt-6">
+                  <label className="block mb-2 font-medium">
+                    Add Your Own Details
+                  </label>
+
+                  <textarea
+                    value={customExtraInstructions}
+                    onChange={(e) => setCustomExtraInstructions(e.target.value)}
+                    placeholder="Example: My main character is a 7-year-old girl named Amara with brown skin, curly hair, purple glasses, and a yellow backpack. She learns to be brave on her first day of school."
+                    className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white min-h-[150px]"
+                  />
+                </div>
               </div>
 
               <button
@@ -593,6 +754,12 @@ function CreateBookContent() {
               <li>• Tone: {tone || "Not selected yet"}</li>
               <li>• Audience: {audience || "Not selected yet"}</li>
               <li>• Images: {imagesNeeded || "Not selected yet"}</li>
+              <li>
+                • Guided choices:{" "}
+                {extraInstructionSelections.length > 0
+                  ? `${extraInstructionSelections.length} selected`
+                  : "None yet"}
+              </li>
             </ul>
 
             <h3 className="text-xl font-semibold mb-4">What Happens Next</h3>
