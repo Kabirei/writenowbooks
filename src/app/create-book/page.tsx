@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { getCurrentUser } from "@/lib/getUser";
@@ -21,6 +21,26 @@ function CreateBookContent() {
   const [extraInstructions, setExtraInstructions] = useState("");
   const [message, setMessage] = useState("");
   const [isCreatingProject, setIsCreatingProject] = useState(false);
+  useEffect(() => {
+  const savedForm = localStorage.getItem("writeNowBookForm");
+
+  if (!savedForm) return;
+
+  try {
+    const parsed = JSON.parse(savedForm);
+
+    setBookType(parsed.bookType || "");
+    setTopic(parsed.topic || "");
+    setPageCount(parsed.pageCount || "");
+    setTone(parsed.tone || "");
+    setAudience(parsed.audience || "");
+    setAuthorName(parsed.authorName || "");
+    setImagesNeeded(parsed.imagesNeeded || "");
+    setExtraInstructions(parsed.extraInstructions || "");
+  } catch (error) {
+    console.error("Unable to restore saved form:", error);
+  }
+}, []);
 
   const bookTypes = [
     "Children's Book",
@@ -89,10 +109,14 @@ function CreateBookContent() {
         const user = await getCurrentUser();
 
         if (!user) {
-          setMessage("Please log in before starting your ESA project.");
-          router.push("/login");
-          return;
-        }
+  setMessage("Please create or log into your account to continue.");
+
+  router.push(
+    "/login?redirect=/create-book?esa=true"
+  );
+
+  return;
+}
 
         const esaRequest = JSON.parse(
           localStorage.getItem("esaRequest") || "{}"

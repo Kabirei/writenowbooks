@@ -282,7 +282,6 @@ export default function ESARequestPage() {
 
     doc.setFontSize(11);
     doc.text(`Vendor: ${vendorInfo.name}`, 20, 129);
-    doc.text(`Legal Entity: ${vendorInfo.legalName}`, 20, 140);
     doc.text(`Address: ${vendorInfo.address}`, 20, 151);
     doc.text(`${vendorInfo.cityStateZip}`, 20, 162);
     doc.text(`Phone: ${vendorInfo.phone}`, 20, 173);
