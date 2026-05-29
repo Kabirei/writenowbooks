@@ -536,6 +536,21 @@ export default function ProjectDetailPage() {
     return plan === "enhanced" || plan === "premium";
   };
 
+const isChildrenBookProject = () => {
+  const bookType = project?.bookData?.bookType?.toLowerCase() || "";
+  const audience = project?.bookData?.audience?.toLowerCase() || "";
+  const imagesNeeded = project?.bookData?.imagesNeeded?.toLowerCase() || "";
+
+  return (
+    bookType.includes("children") ||
+    bookType.includes("kids") ||
+    bookType.includes("picture") ||
+    audience.includes("children") ||
+    audience.includes("toddlers") ||
+    imagesNeeded.includes("every page")
+  );
+};
+
   const saveUsage = (newUsage: Usage) => {
     if (!project) return;
 
@@ -842,7 +857,7 @@ export default function ProjectDetailPage() {
     if (!project) return;
 
     try {
-      setChapterMessage("Generating children’s book pages...");
+      setChapterMessage("Generating story pages...");
 
       const response = await fetch("/api/ai/generate-pages", {
         method: "POST",
@@ -857,7 +872,7 @@ export default function ProjectDetailPage() {
       const data = await response.json();
 
       if (!data.success) {
-        setChapterMessage(data.message || "Children’s page generation failed.");
+        setChapterMessage(data.message || "Story page generation failed.");
         return;
       }
 
@@ -873,7 +888,7 @@ export default function ProjectDetailPage() {
       );
 
       setPages(newPages);
-      setChapterMessage("Children’s book pages generated successfully.");
+      setChapterMessage("Story pages generated successfully.");
     } catch (error) {
       setChapterMessage(
         error instanceof Error
@@ -888,14 +903,14 @@ export default function ProjectDetailPage() {
 
     if (!planAllowsChapterImages()) {
       setPageImageMessage(
-        "Page image generation requires the Enhanced or Premium plan."
+        "Page illustration generation requires the Enhanced or Premium plan."
       );
       return;
     }
 
     try {
       setPageImageLoading(true);
-      setPageImageMessage("Generating page images...");
+      setPageImageMessage("Generating page illustrations...");
 
       const results: PageImage[] = [];
 
@@ -935,14 +950,14 @@ export default function ProjectDetailPage() {
 
       setPageImageMessage(
         results.length > 0
-          ? "Page images generated successfully."
-          : "No page images were generated."
+          ? "Page illustrations generated successfully."
+          : "No page illustrations were generated."
       );
     } catch (error) {
       setPageImageMessage(
         error instanceof Error
           ? error.message
-          : "Page image generation failed."
+          : "Page illustration generation failed."
       );
     } finally {
       setPageImageLoading(false);
@@ -955,7 +970,11 @@ export default function ProjectDetailPage() {
 
   try {
     setImagePlanLoading(true);
-    setImagePlanMessage("Generating image plan with AI...");
+    setImagePlanMessage(
+      childrenBookMode
+        ? "Creating character sheet and illustration style..."
+        : "Creating illustration plan with AI..."
+    );
 
     const chaptersForPlan =
       outline?.chapters ||
@@ -991,7 +1010,11 @@ export default function ProjectDetailPage() {
 
     await saveImagePlan(plan);
     incrementUsage("imagePlan");
-    setImagePlanMessage("AI image plan generated and saved successfully.");
+    setImagePlanMessage(
+      childrenBookMode
+        ? "Character sheet created and saved successfully."
+        : "Illustration plan created and saved successfully."
+    );
   } catch (error) {
     setImagePlanMessage(
       error instanceof Error ? error.message : "Unexpected AI image plan error."
@@ -1145,8 +1168,11 @@ if (loading) {
     );
   }
 
-  const manuscriptReady =
-    !!generatedChapters && generatedChapters.chapters.length > 0;
+  const childrenBookMode = isChildrenBookProject();
+
+const manuscriptReady = childrenBookMode
+  ? !!pages && pages.pages.length > 0
+  : !!generatedChapters && generatedChapters.chapters.length > 0;
   const limits = currentLimits();
   const limitLabel =
     limits === "unlimited" ? "Unlimited AI usage" : "Limited AI usage";
@@ -1201,7 +1227,9 @@ if (loading) {
             </div>
 
             <div className="rounded-lg border border-gray-800 bg-black/40 p-3">
-              <p className="text-gray-400">Image Plans</p>
+              <p className="text-gray-400">
+                {childrenBookMode ? "Character Sheets" : "Image Plans"}
+              </p>
               <p className="font-semibold">{usageLabel("imagePlan")}</p>
             </div>
 
@@ -1221,8 +1249,9 @@ if (loading) {
               {project.bookData?.bookType || "Untitled Project"}
             </h1>
             <p className="text-lg text-gray-300">
-              Build the book, expand chapters, plan visuals, generate cover art,
-              and prepare the manuscript.
+              {childrenBookMode
+                ? "Build story pages, create a character sheet, generate page illustrations, and prepare the book."
+                : "Build the outline, expand chapters, plan visuals, generate cover art, and prepare the manuscript."}
             </p>
           </div>
 
@@ -1311,497 +1340,640 @@ if (loading) {
                 <p className="text-sm text-gray-400 mb-2">
                   Extra Instructions
                 </p>
-                <div className="rounded-xl border border-gray-800 bg-black/40 p-4 text-gray-200">
+                <div className="rounded-xl border border-gray-800 bg-black/40 p-4 text-gray-200 whitespace-pre-line">
                   {project.bookData?.extraInstructions ||
                     "No extra instructions provided"}
                 </div>
               </div>
             </div>
 
-            <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                <h2 className="text-2xl font-semibold">AI Outline Workspace</h2>
+            {childrenBookMode ? (
+              <div className="border border-yellow-500/30 rounded-2xl p-8 bg-yellow-500/10">
+                <div className="mb-6">
+                  <p className="text-sm uppercase tracking-[0.25em] text-yellow-300 mb-3">
+                    Children&apos;s Book Workflow
+                  </p>
+                  <h2 className="text-2xl font-semibold">
+                    Step 1: Generate Story Pages
+                  </h2>
+                  <p className="text-gray-300 text-sm mt-2">
+                    Create the page-by-page story text first. Character planning
+                    and illustrations come after the story pages are created.
+                  </p>
+                </div>
 
                 <button
-                  onClick={handleGenerateOutline}
-                  disabled={outlineLoading}
+                  onClick={handleGeneratePages}
+                  disabled={chapterLoading}
+                  className="border border-yellow-400 text-yellow-300 px-5 py-3 rounded-lg font-semibold hover:bg-yellow-400 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {chapterLoading ? "Generating..." : "Generate Story Pages"}
+                </button>
+
+                {chapterMessage && (
+                  <div className="mt-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
+                    {chapterMessage}
+                  </div>
+                )}
+
+                {!pages ? (
+                  <div className="mt-6 border border-dashed border-yellow-500/30 rounded-xl p-8 text-center">
+                    <p className="text-gray-300 mb-3">
+                      No story pages have been generated yet.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Click “Generate Story Pages” to create the children&apos;s
+                      book pages.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-8 space-y-5">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                      <div>
+                        <p className="text-sm text-gray-400 mb-1">
+                          Generated / Last Updated
+                        </p>
+                        <p>{new Date(pages.generatedAt).toLocaleString()}</p>
+                      </div>
+
+                      <Link
+                        href={`/projects/${project.id}/manuscript`}
+                        className="inline-block bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition text-center"
+                      >
+                        View Full Book
+                      </Link>
+                    </div>
+
+                    {pages.pages.map((page) => (
+                      <div
+                        key={page.pageNumber}
+                        className="rounded-2xl border border-gray-800 bg-black/40 p-5"
+                      >
+                        <p className="text-yellow-400 font-semibold mb-2">
+                          Page {page.pageNumber}
+                        </p>
+                        <p className="text-gray-200 leading-7">{page.text}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <h2 className="text-2xl font-semibold">
+                      AI Outline Workspace
+                    </h2>
+
+                    <button
+                      onClick={handleGenerateOutline}
+                      disabled={outlineLoading}
+                      className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {outlineLoading ? "Generating..." : "Generate AI Outline"}
+                    </button>
+                  </div>
+
+                  {outlineMessage && (
+                    <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
+                      {outlineMessage}
+                    </div>
+                  )}
+
+                  {!outline ? (
+                    <div className="border border-dashed border-gray-700 rounded-xl p-8 text-center">
+                      <p className="text-gray-300 mb-3">
+                        No AI outline has been generated yet.
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Click “Generate AI Outline” to create a real
+                        AI-generated structure.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="mb-5">
+                        <p className="text-sm text-gray-400 mb-1">
+                          Outline Title
+                        </p>
+                        <p className="font-semibold">{outline.title}</p>
+                      </div>
+
+                      <div className="mb-5">
+                        <p className="text-sm text-gray-400 mb-1">Generated</p>
+                        <p>{new Date(outline.generatedAt).toLocaleString()}</p>
+                      </div>
+
+                      <div>
+                        <p className="text-sm text-gray-400 mb-3">Chapters</p>
+                        <ul className="space-y-3">
+                          {outline.chapters.map((chapter, index) => (
+                            <li
+                              key={index}
+                              className="rounded-xl border border-gray-800 bg-black/40 p-4"
+                            >
+                              <span className="text-yellow-400 font-semibold mr-2">
+                                {index + 1}.
+                              </span>
+                              {chapter}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                    <div>
+                      <h2 className="text-2xl font-semibold">
+                        AI Chapter Draft Workspace
+                      </h2>
+                      <p className="text-gray-400 text-sm mt-2">
+                        Generate long-form chapters and expand them into a
+                        fuller manuscript.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={handleGenerateChapters}
+                        disabled={!outline || chapterLoading}
+                        className="bg-white text-black px-5 py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {chapterLoading
+                          ? "Generating..."
+                          : "Generate AI Chapters"}
+                      </button>
+
+                      <button
+                        onClick={handleExpandChapters}
+                        disabled={!generatedChapters || expandLoading}
+                        className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {expandLoading ? "Expanding..." : "Expand AI Chapters"}
+                      </button>
+                    </div>
+                  </div>
+
+                  {chapterMessage && (
+                    <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
+                      {chapterMessage}
+                    </div>
+                  )}
+
+                  {expandMessage && (
+                    <div className="mb-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+                      {expandMessage}
+                    </div>
+                  )}
+
+                  {!outline && (
+                    <div className="mb-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-200">
+                      Generate the outline first before creating chapters.
+                    </div>
+                  )}
+
+                  {!generatedChapters ? (
+                    <div className="border border-dashed border-gray-700 rounded-xl p-8 text-center">
+                      <p className="text-gray-300 mb-3">
+                        No AI chapter drafts have been generated yet.
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Once generated, chapter content will be saved here for
+                        this project.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div>
+                          <p className="text-sm text-gray-400 mb-1">
+                            Generated / Last Updated
+                          </p>
+                          <p>
+                            {new Date(
+                              generatedChapters.generatedAt
+                            ).toLocaleString()}
+                          </p>
+                        </div>
+
+                        <Link
+                          href={`/projects/${project.id}/manuscript`}
+                          className="inline-block bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition text-center"
+                        >
+                          View Full Manuscript
+                        </Link>
+                      </div>
+
+                      {generatedChapters.chapters.map((chapter, index) => (
+                        <div
+                          key={index}
+                          className="rounded-2xl border border-gray-800 bg-black/40 p-5"
+                        >
+                          <h3 className="text-xl font-semibold mb-3">
+                            Chapter {index + 1}: {chapter.title}
+                          </h3>
+                          <p className="whitespace-pre-line text-gray-200 leading-7">
+                            {chapter.content}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className="border border-yellow-500/30 rounded-2xl p-8 bg-yellow-500/10">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-sm uppercase tracking-[0.25em] text-yellow-300 mb-3">
+                    {childrenBookMode ? "Step 2" : "Visual Planning"}
+                  </p>
+                  <h2 className="text-2xl font-semibold">
+                    {childrenBookMode
+                      ? "Character & Illustration Planning"
+                      : "Illustration Planning"}
+                  </h2>
+                  <p className="text-gray-300 mt-2">
+                    {childrenBookMode
+                      ? "Create consistent characters, art style, and illustration instructions before generating page artwork."
+                      : "Create cover prompts, character notes, and image prompts before creating actual images."}
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleGenerateImagePlan}
+                  disabled={imagePlanLoading}
                   className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {outlineLoading ? "Generating..." : "Generate AI Outline"}
+                  {imagePlanLoading
+                    ? childrenBookMode
+                      ? "Building Character Sheet..."
+                      : "Creating Plan..."
+                    : childrenBookMode
+                    ? "Create Character Sheet"
+                    : "Create Illustration Plan"}
                 </button>
               </div>
 
-                            {outlineMessage && (
+              {imagePlanMessage && (
                 <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
-                  {outlineMessage}
+                  {imagePlanMessage}
                 </div>
               )}
 
-              {!outline ? (
-                <div className="border border-dashed border-gray-700 rounded-xl p-8 text-center">
+              {!imagePlan ? (
+                <div className="border border-dashed border-yellow-500/30 rounded-xl p-8 text-center">
                   <p className="text-gray-300 mb-3">
-                    No AI outline has been generated yet.
+                    {childrenBookMode
+                      ? "No character sheet has been created yet."
+                      : "No illustration plan has been generated yet."}
                   </p>
                   <p className="text-sm text-gray-500">
-                    Click “Generate AI Outline” to create a real AI-generated
-                    structure.
+                    {childrenBookMode
+                      ? "Create the character sheet before generating page illustrations."
+                      : "Create the illustration plan before generating cover or chapter images."}
                   </p>
                 </div>
               ) : (
-                <div>
-                  <div className="mb-5">
-                    <p className="text-sm text-gray-400 mb-1">Outline Title</p>
-                    <p className="font-semibold">{outline.title}</p>
-                  </div>
-
-                  <div className="mb-5">
-                    <p className="text-sm text-gray-400 mb-1">Generated</p>
-                    <p>{new Date(outline.generatedAt).toLocaleString()}</p>
+                <div className="space-y-8">
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">
+                      Overall Style
+                    </h3>
+                    <div className="rounded-xl border border-yellow-500/20 bg-black/30 p-4 text-gray-200">
+                      {imagePlan.style}
+                    </div>
                   </div>
 
                   <div>
-                    <p className="text-sm text-gray-400 mb-3">Chapters</p>
-                    <ul className="space-y-3">
-                      {outline.chapters.map((chapter, index) => (
-                        <li
-                          key={index}
-                          className="rounded-xl border border-gray-800 bg-black/40 p-4"
-                        >
-                          <span className="text-yellow-400 font-semibold mr-2">
-                            {index + 1}.
-                          </span>
-                          {chapter}
-                        </li>
-                      ))}
-                    </ul>
+                    <h3 className="text-xl font-semibold mb-3">
+                      Cover Prompt
+                    </h3>
+                    <div className="rounded-xl border border-yellow-500/20 bg-black/30 p-4 text-gray-200 whitespace-pre-line">
+                      {imagePlan.coverPrompt}
+                    </div>
                   </div>
+
+                  <div>
+                    <h3 className="text-xl font-semibold mb-3">Characters</h3>
+                    {imagePlan.characters.length === 0 ? (
+                      <p className="text-gray-400">No characters provided.</p>
+                    ) : (
+                      <div className="space-y-4">
+                        {imagePlan.characters.map((character, index) => (
+                          <div
+                            key={index}
+                            className="rounded-xl border border-yellow-500/20 bg-black/30 p-4"
+                          >
+                            <p className="font-semibold text-yellow-300 mb-2">
+                              {character.name}
+                            </p>
+                            <p className="text-gray-200">
+                              {character.description}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {childrenBookMode && pages && (
+                    <div className="border-t border-yellow-500/20 pt-8">
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                        <div>
+                          <p className="text-sm uppercase tracking-[0.25em] text-yellow-300 mb-3">
+                            Step 3
+                          </p>
+                          <h3 className="text-xl font-semibold">
+                            Page Illustrations
+                          </h3>
+                          <p className="text-gray-300 mt-2">
+                            Generate artwork for each story page using the saved
+                            character sheet and visual style.
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={handleGeneratePageImages}
+                          disabled={pageImageLoading || !pages || !imagePlan}
+                          className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {pageImageLoading
+                            ? "Generating..."
+                            : "Generate Page Illustrations"}
+                        </button>
+                      </div>
+
+                      {pageImageMessage && (
+                        <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
+                          {pageImageMessage}
+                        </div>
+                      )}
+
+                      <div className="space-y-5">
+                        {pages.pages.map((page) => {
+                          const matchingImage = pageImages.find(
+                            (img) => img.pageNumber === page.pageNumber
+                          );
+
+                          return (
+                            <div
+                              key={page.pageNumber}
+                              className="rounded-2xl border border-yellow-500/20 bg-black/40 p-5"
+                            >
+                              <p className="text-yellow-400 font-semibold mb-2">
+                                Page {page.pageNumber}
+                              </p>
+
+                              {matchingImage && (
+                                <div className="w-full aspect-[4/5] overflow-hidden rounded-xl border border-yellow-500/20 bg-black mb-4">
+                                  <img
+                                    src={
+                                      matchingImage.imageUrl
+                                        ? matchingImage.imageUrl
+                                        : `data:${matchingImage.mimeType};base64,${matchingImage.imageBase64}`
+                                    }
+                                    alt={`Page ${page.pageNumber}`}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              )}
+
+                              <p className="text-gray-200 leading-7">
+                                {page.text}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t border-yellow-500/20 pt-8">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                      <div>
+                        <p className="text-sm uppercase tracking-[0.25em] text-yellow-300 mb-3">
+                          {childrenBookMode ? "Step 4" : "Cover"}
+                        </p>
+                        <h3 className="text-xl font-semibold">Cover Image</h3>
+                        <p className="text-gray-300 mt-2">
+                          Generate a cover image from the saved cover prompt.
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={handleGenerateCoverImage}
+                        disabled={coverImageLoading}
+                        className="bg-white text-black px-5 py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {coverImageLoading
+                          ? "Generating..."
+                          : "Generate Cover Image"}
+                      </button>
+                    </div>
+
+                    {coverImageMessage && (
+                      <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
+                        {coverImageMessage}
+                      </div>
+                    )}
+
+                    {!coverImage ? (
+                      <div className="border border-dashed border-yellow-500/30 rounded-xl p-8 text-center">
+                        <p className="text-gray-300 mb-3">
+                          No cover image generated yet.
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Generate the cover after reviewing the prompt above.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        <p className="text-sm text-gray-400">
+                          Generated:{" "}
+                          {new Date(coverImage.generatedAt).toLocaleString()}
+                        </p>
+
+                        <div className="w-full max-w-md aspect-[2/3] overflow-hidden rounded-2xl border border-yellow-500/30 bg-black">
+                          <img
+                            src={
+                              coverImage.imageUrl
+                                ? coverImage.imageUrl
+                                : `data:${coverImage.mimeType};base64,${coverImage.imageBase64}`
+                            }
+                            alt="Generated book cover"
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+
+                        {coverImage.fallback && (
+                          <p className="text-sm text-yellow-200">
+                            Fallback cover preview generated. Final AI cover can
+                            be regenerated when image generation is available.
+                          </p>
+                        )}
+
+                        <a
+                          href={
+                            coverImage.imageUrl
+                              ? coverImage.imageUrl
+                              : `data:${coverImage.mimeType};base64,${coverImage.imageBase64}`
+                          }
+                          download={
+                            coverImage.mimeType === "image/svg+xml"
+                              ? "writenowbooks-cover.svg"
+                              : "writenowbooks-cover.png"
+                          }
+                          className="inline-block bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition"
+                        >
+                          Download Cover Image
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {!childrenBookMode && (
+                    <>
+                      <div>
+                        <h3 className="text-xl font-semibold mb-3">
+                          Chapter Image Prompts
+                        </h3>
+                        {imagePlan.chapterImages.length === 0 ? (
+                          <p className="text-gray-400">
+                            No chapter prompts provided.
+                          </p>
+                        ) : (
+                          <div className="space-y-4">
+                            {imagePlan.chapterImages.map((item, index) => (
+                              <div
+                                key={index}
+                                className="rounded-xl border border-yellow-500/20 bg-black/30 p-4"
+                              >
+                                <p className="font-semibold text-yellow-300 mb-2">
+                                  {index + 1}. {item.chapter}
+                                </p>
+                                <p className="text-gray-200 whitespace-pre-line">
+                                  {item.prompt}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="border-t border-yellow-500/20 pt-8">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                          <div>
+                            <h3 className="text-xl font-semibold">
+                              Chapter Images
+                            </h3>
+                            <p className="text-gray-300 mt-2">
+                              {planAllowsChapterImages()
+                                ? "Generate illustrations for each chapter."
+                                : "Chapter image generation is available on Enhanced and Premium plans."}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={handleGenerateChapterImages}
+                            disabled={
+                              chapterImageLoading ||
+                              !planAllowsChapterImages()
+                            }
+                            className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {chapterImageLoading
+                              ? "Generating..."
+                              : planAllowsChapterImages()
+                              ? "Generate Chapter Images"
+                              : "Upgrade for Chapter Images"}
+                          </button>
+                        </div>
+
+                        {chapterImageMessage && (
+                          <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
+                            {chapterImageMessage}
+                          </div>
+                        )}
+
+                        {!planAllowsChapterImages() && (
+                          <div className="mb-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-100">
+                            Starter includes cover image generation only.
+                            Upgrade to Enhanced or Premium to generate and
+                            export chapter illustrations.
+                          </div>
+                        )}
+
+                        {chapterImages.length === 0 ? (
+                          <div className="border border-dashed border-yellow-500/30 rounded-xl p-8 text-center">
+                            <p className="text-gray-300 mb-3">
+                              No chapter images generated yet.
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {planAllowsChapterImages()
+                                ? "Generate images from your image plan."
+                                : "Upgrade to unlock chapter images."}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="grid gap-6 md:grid-cols-2">
+                            {chapterImages.map((img, index) => (
+                              <div
+                                key={index}
+                                className="rounded-2xl border border-yellow-500/20 bg-black/40 p-4"
+                              >
+                                <p className="text-yellow-300 font-semibold mb-2">
+                                  {img.chapter}
+                                </p>
+
+                                <div className="w-full aspect-square overflow-hidden rounded-xl border border-yellow-500/20 bg-black mb-4">
+                                  <img
+                                    src={
+                                      img.imageUrl
+                                        ? img.imageUrl
+                                        : `data:${img.mimeType};base64,${img.imageBase64}`
+                                    }
+                                    alt={img.chapter}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+
+                                {img.fallback && (
+                                  <p className="text-xs text-yellow-200 mb-3">
+                                    Fallback preview image
+                                  </p>
+                                )}
+
+                                <a
+                                  href={
+                                    img.imageUrl
+                                      ? img.imageUrl
+                                      : `data:${img.mimeType};base64,${img.imageBase64}`
+                                  }
+                                  download={`chapter-${index + 1}.${
+                                    img.mimeType === "image/svg+xml"
+                                      ? "svg"
+                                      : "png"
+                                  }`}
+                                  className="inline-block bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition"
+                                >
+                                  Download
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
             </div>
-
-           <div className="border border-gray-700 rounded-2xl p-8 bg-gray-950">
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-    <div>
-      <h2 className="text-2xl font-semibold">
-        AI Chapter Draft Workspace
-      </h2>
-      <p className="text-gray-400 text-sm mt-2">
-        Generate long-form chapters, expand them, or create page-by-page children&apos;s book content.
-      </p>
-    </div>
-
-    <div className="flex flex-col sm:flex-row gap-3">
-      <button
-        onClick={handleGenerateChapters}
-        disabled={!outline || chapterLoading}
-        className="bg-white text-black px-5 py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {chapterLoading ? "Generating..." : "Generate AI Chapters"}
-      </button>
-
-      <button
-        onClick={handleExpandChapters}
-        disabled={!generatedChapters || expandLoading}
-        className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {expandLoading ? "Expanding..." : "Expand AI Chapters"}
-      </button>
-
-      <button
-        onClick={handleGeneratePages}
-        disabled={chapterLoading}
-        className="border border-yellow-400 text-yellow-300 px-5 py-3 rounded-lg font-semibold hover:bg-yellow-400 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        Generate Children&apos;s Pages
-      </button>
-    </div>
-  </div>
-
-  {chapterMessage && (
-    <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
-      {chapterMessage}
-    </div>
-  )}
-
-  {expandMessage && (
-    <div className="mb-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-200">
-      {expandMessage}
-    </div>
-  )}
-
-  {!outline && (
-    <div className="mb-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-3 text-sm text-yellow-200">
-      Generate the outline first before creating chapters.
-    </div>
-  )}
-
-  {!generatedChapters ? (
-    <div className="border border-dashed border-gray-700 rounded-xl p-8 text-center">
-      <p className="text-gray-300 mb-3">
-        No AI chapter drafts have been generated yet.
-      </p>
-      <p className="text-sm text-gray-500">
-        Once generated, chapter content will be saved here for this project.
-      </p>
-    </div>
-  ) : (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <p className="text-sm text-gray-400 mb-1">
-            Generated / Last Updated
-          </p>
-          <p>{new Date(generatedChapters.generatedAt).toLocaleString()}</p>
-        </div>
-
-        <Link
-          href={`/projects/${project.id}/manuscript`}
-          className="inline-block bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition text-center"
-        >
-          View Full Manuscript
-        </Link>
-      </div>
-
-      {generatedChapters.chapters.map((chapter, index) => (
-        <div
-          key={index}
-          className="rounded-2xl border border-gray-800 bg-black/40 p-5"
-        >
-          <h3 className="text-xl font-semibold mb-3">
-            Chapter {index + 1}: {chapter.title}
-          </h3>
-          <p className="whitespace-pre-line text-gray-200 leading-7">
-            {chapter.content}
-          </p>
-        </div>
-      ))}
-    </div>
-  )}
-
-  {pages && (
-  <div className="mt-10 border-t border-gray-700 pt-8">
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-      <div>
-        <h3 className="text-xl font-semibold">Children's Book Pages</h3>
-        <p className="text-gray-400 text-sm mt-2">
-          These are page-by-page children's book scenes.
-        </p>
-      </div>
-
-      <button
-        onClick={handleGeneratePageImages}
-        disabled={pageImageLoading || !pages}
-        className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition"
-      >
-        {pageImageLoading ? "Generating..." : "Generate Page Images"}
-      </button>
-    </div>
-
-    {pageImageMessage && (
-      <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
-        {pageImageMessage}
-      </div>
-    )}
-
-    <div className="space-y-5">
-      {pages.pages.map((page) => {
-        const matchingImage = pageImages.find(
-          (img) => img.pageNumber === page.pageNumber
-        );
-
-        return (
-          <div
-            key={page.pageNumber}
-            className="rounded-2xl border border-gray-800 bg-black/40 p-5"
-          >
-            <p className="text-yellow-400 font-semibold mb-2">
-              Page {page.pageNumber}
-            </p>
-
-            {matchingImage && (
-              <div className="w-full aspect-[4/5] overflow-hidden rounded-xl border border-yellow-500/20 bg-black mb-4">
-                <img
-                  src={
-                    matchingImage.imageUrl
-                      ? matchingImage.imageUrl
-                      : `data:${matchingImage.mimeType};base64,${matchingImage.imageBase64}`
-                  }
-                  alt={`Page ${page.pageNumber}`}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            )}
-
-            <p className="text-gray-200 leading-7">{page.text}</p>
-          </div>
-        );
-      })}
-    </div>
-  </div>
-)}
-
-{/* IMAGE PLAN SECTION */}
-<div className="border border-yellow-500/30 rounded-2xl p-8 bg-yellow-500/10">
-  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-    <div>
-      <h2 className="text-2xl font-semibold">AI Image Planning Workspace</h2>
-      <p className="text-gray-300 mt-2">
-        Generate cover prompts, character notes, and image prompts before creating actual images.
-      </p>
-    </div>
-
-    <button
-      onClick={handleGenerateImagePlan}
-      disabled={imagePlanLoading}
-      className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {imagePlanLoading ? "Generating..." : "Generate Image Plan"}
-    </button>
-  </div>
-
-  {imagePlanMessage && (
-    <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
-      {imagePlanMessage}
-    </div>
-  )}
-
-  {!imagePlan ? (
-    <div className="border border-dashed border-yellow-500/30 rounded-xl p-8 text-center">
-      <p className="text-gray-300 mb-3">No image plan has been generated yet.</p>
-      <p className="text-sm text-gray-500">
-        Generate an image plan before creating cover or chapter images.
-      </p>
-    </div>
-  ) : (
-    <div className="space-y-8">
-      <div>
-        <h3 className="text-xl font-semibold mb-3">Overall Style</h3>
-        <div className="rounded-xl border border-yellow-500/20 bg-black/30 p-4 text-gray-200">
-          {imagePlan.style}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-xl font-semibold mb-3">Cover Prompt</h3>
-        <div className="rounded-xl border border-yellow-500/20 bg-black/30 p-4 text-gray-200 whitespace-pre-line">
-          {imagePlan.coverPrompt}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="text-xl font-semibold mb-3">Characters</h3>
-        {imagePlan.characters.length === 0 ? (
-          <p className="text-gray-400">No characters provided.</p>
-        ) : (
-          <div className="space-y-4">
-            {imagePlan.characters.map((character, index) => (
-              <div
-                key={index}
-                className="rounded-xl border border-yellow-500/20 bg-black/30 p-4"
-              >
-                <p className="font-semibold text-yellow-300 mb-2">
-                  {character.name}
-                </p>
-                <p className="text-gray-200">{character.description}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-yellow-500/20 pt-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <div>
-            <h3 className="text-xl font-semibold">Cover Image</h3>
-            <p className="text-gray-300 mt-2">
-              Generate a cover image from the saved cover prompt.
-            </p>
-          </div>
-
-          <button
-            onClick={handleGenerateCoverImage}
-            disabled={coverImageLoading}
-            className="bg-white text-black px-5 py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {coverImageLoading ? "Generating..." : "Generate Cover Image"}
-          </button>
-        </div>
-
-        {coverImageMessage && (
-          <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
-            {coverImageMessage}
-          </div>
-        )}
-
-        {!coverImage ? (
-          <div className="border border-dashed border-yellow-500/30 rounded-xl p-8 text-center">
-            <p className="text-gray-300 mb-3">No cover image generated yet.</p>
-            <p className="text-sm text-gray-500">
-              Generate the cover after reviewing the prompt above.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-400">
-              Generated: {new Date(coverImage.generatedAt).toLocaleString()}
-            </p>
-
-            <div className="w-full max-w-md aspect-[2/3] overflow-hidden rounded-2xl border border-yellow-500/30 bg-black">
-              <img
-                src={
-                  coverImage.imageUrl
-                    ? coverImage.imageUrl
-                    : `data:${coverImage.mimeType};base64,${coverImage.imageBase64}`
-                }
-                alt="Generated book cover"
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            {coverImage.fallback && (
-              <p className="text-sm text-yellow-200">
-                Fallback cover preview generated. Final AI cover can be regenerated when image generation is available.
-              </p>
-            )}
-
-            <a
-              href={
-                coverImage.imageUrl
-                  ? coverImage.imageUrl
-                  : `data:${coverImage.mimeType};base64,${coverImage.imageBase64}`
-              }
-              download={
-                coverImage.mimeType === "image/svg+xml"
-                  ? "writenowbooks-cover.svg"
-                  : "writenowbooks-cover.png"
-              }
-              className="inline-block bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition"
-            >
-              Download Cover Image
-            </a>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h3 className="text-xl font-semibold mb-3">Chapter Image Prompts</h3>
-        {imagePlan.chapterImages.length === 0 ? (
-          <p className="text-gray-400">No chapter prompts provided.</p>
-        ) : (
-          <div className="space-y-4">
-            {imagePlan.chapterImages.map((item, index) => (
-              <div
-                key={index}
-                className="rounded-xl border border-yellow-500/20 bg-black/30 p-4"
-              >
-                <p className="font-semibold text-yellow-300 mb-2">
-                  {index + 1}. {item.chapter}
-                </p>
-                <p className="text-gray-200 whitespace-pre-line">
-                  {item.prompt}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="border-t border-yellow-500/20 pt-8">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-          <div>
-            <h3 className="text-xl font-semibold">Chapter Images</h3>
-            <p className="text-gray-300 mt-2">
-              {planAllowsChapterImages()
-                ? "Generate illustrations for each chapter, especially for children's books."
-                : "Chapter image generation is available on Enhanced and Premium plans."}
-            </p>
-          </div>
-
-          <button
-            onClick={handleGenerateChapterImages}
-            disabled={chapterImageLoading || !planAllowsChapterImages()}
-            className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {chapterImageLoading
-              ? "Generating..."
-              : planAllowsChapterImages()
-              ? "Generate Chapter Images"
-              : "Upgrade for Chapter Images"}
-          </button>
-        </div>
-
-        {chapterImageMessage && (
-          <div className="mb-6 rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-200">
-            {chapterImageMessage}
-          </div>
-        )}
-
-        {!planAllowsChapterImages() && (
-          <div className="mb-6 rounded-lg border border-yellow-500/40 bg-yellow-500/10 p-4 text-sm text-yellow-100">
-            Starter includes cover image generation only. Upgrade to Enhanced or Premium to generate and export chapter illustrations.
-          </div>
-        )}
-
-        {chapterImages.length === 0 ? (
-          <div className="border border-dashed border-yellow-500/30 rounded-xl p-8 text-center">
-            <p className="text-gray-300 mb-3">No chapter images generated yet.</p>
-            <p className="text-sm text-gray-500">
-              {planAllowsChapterImages()
-                ? "Generate images from your image plan."
-                : "Upgrade to unlock chapter images."}
-            </p>
-          </div>
-        ) : (
-          <div className="grid gap-6 md:grid-cols-2">
-            {chapterImages.map((img, index) => (
-              <div
-                key={index}
-                className="rounded-2xl border border-yellow-500/20 bg-black/40 p-4"
-              >
-                <p className="text-yellow-300 font-semibold mb-2">
-                  {img.chapter}
-                </p>
-
-                <div className="w-full aspect-square overflow-hidden rounded-xl border border-yellow-500/20 bg-black mb-4">
-                  <img
-                    src={
-                      img.imageUrl
-                        ? img.imageUrl
-                        : `data:${img.mimeType};base64,${img.imageBase64}`
-                    }
-                    alt={img.chapter}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {img.fallback && (
-                  <p className="text-xs text-yellow-200 mb-3">
-                    Fallback preview image
-                  </p>
-                )}
-
-                <a
-                  href={
-                    img.imageUrl
-                      ? img.imageUrl
-                      : `data:${img.mimeType};base64,${img.imageBase64}`
-                  }
-                  download={`chapter-${index + 1}.${
-                    img.mimeType === "image/svg+xml" ? "svg" : "png"
-                  }`}
-                  className="inline-block bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition"
-                >
-                  Download
-                </a>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  )}
-</div>
-</div>
           </section>
 
           <aside className="space-y-6">
@@ -1854,11 +2026,15 @@ if (loading) {
 
             <div className="border border-yellow-500/30 rounded-2xl p-8 bg-yellow-500/10">
               <h2 className="text-2xl font-semibold mb-4">
-                Manuscript Status
+                {childrenBookMode ? "Book Status" : "Manuscript Status"}
               </h2>
               <p className="text-gray-300 mb-5">
                 {manuscriptReady
-                  ? "Your manuscript view is ready."
+                  ? childrenBookMode
+                    ? "Your book view is ready."
+                    : "Your manuscript view is ready."
+                  : childrenBookMode
+                  ? "Generate story pages to unlock the book view."
                   : "Generate AI chapters to unlock the manuscript view."}
               </p>
 
@@ -1870,7 +2046,7 @@ if (loading) {
                     : "border border-gray-700 text-gray-500 pointer-events-none"
                 }`}
               >
-                View Full Manuscript
+                {childrenBookMode ? "View Full Book" : "View Full Manuscript"}
               </Link>
             </div>
           </aside>
