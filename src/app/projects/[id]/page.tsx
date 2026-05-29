@@ -899,7 +899,95 @@ const isChildrenBookProject = () => {
   };
 
   const handleGeneratePageImages = async () => {
-    if (!project || !pages) return;
+    if (!project || !pages || !imagePlan) return;
+
+    if (!planAllowsChapterImages()) {
+      setPageImageMessage(
+        "Page illustration generation requires the Enhanced or Premium plan."
+      );
+      return;
+    }
+
+    const nextPage = pages.pages.find(
+      (page) => !pageImages.some((img) => img.pageNumber === page.pageNumber)
+    );
+
+    if (!nextPage) {
+      setPageImageMessage("All page illustrations have already been generated.");
+      return;
+    }
+
+    try {
+      setPageImageLoading(true);
+      setPageImageMessage(
+        `Generating illustration for page ${nextPage.pageNumber}...`
+      );
+
+      const response = await fetch("/api/ai/generate-chapter-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          prompt: nextPage.prompt,
+          chapterTitle: `Page ${nextPage.pageNumber}`,
+          projectId: project.id,
+          characters: imagePlan.characters || [],
+          style: imagePlan.style || "",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        setPageImageMessage(
+          data.message ||
+            `Page ${nextPage.pageNumber} illustration could not be generated.`
+        );
+        return;
+      }
+
+      const newImage: PageImage = {
+        projectId: project.id,
+        pageNumber: nextPage.pageNumber,
+        text: nextPage.text,
+        prompt: nextPage.prompt,
+        imageBase64: data.image,
+        imageUrl: data.imageUrl || "",
+        mimeType: data.mimeType || "image/png",
+        generatedAt: new Date().toISOString(),
+        fallback: data.fallback || false,
+      };
+
+      const updatedImages = [
+        ...pageImages.filter((img) => img.pageNumber !== nextPage.pageNumber),
+        newImage,
+      ].sort((a, b) => a.pageNumber - b.pageNumber);
+
+      savePageImages(updatedImages);
+
+      const remainingCount = pages.pages.length - updatedImages.length;
+
+      setPageImageMessage(
+        remainingCount > 0
+          ? `Page ${nextPage.pageNumber} illustration generated. ${remainingCount} page illustration${
+              remainingCount === 1 ? "" : "s"
+            } remaining.`
+          : "All page illustrations have been generated successfully."
+      );
+    } catch (error) {
+      setPageImageMessage(
+        error instanceof Error
+          ? error.message
+          : `Page ${nextPage.pageNumber} illustration generation failed.`
+      );
+    } finally {
+      setPageImageLoading(false);
+    }
+  };
+
+  const handleRegeneratePageImage = async (page: PageItem) => {
+    if (!project || !imagePlan) return;
 
     if (!planAllowsChapterImages()) {
       setPageImageMessage(
@@ -910,54 +998,57 @@ const isChildrenBookProject = () => {
 
     try {
       setPageImageLoading(true);
-      setPageImageMessage("Generating page illustrations...");
+      setPageImageMessage(`Regenerating illustration for page ${page.pageNumber}...`);
 
-      const results: PageImage[] = [];
-
-      for (const page of pages.pages) {
-        const response = await fetch("/api/ai/generate-chapter-image", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            prompt: page.prompt,
-            chapterTitle: `Page ${page.pageNumber}`,
-            projectId: project.id,
-            characters: imagePlan?.characters || [],
-            style: imagePlan?.style || "",
-          }),
-        });
-
-        const data = await response.json();
-
-        if (!data.success) continue;
-
-        results.push({
-          projectId: project.id,
-          pageNumber: page.pageNumber,
-          text: page.text,
+      const response = await fetch("/api/ai/generate-chapter-image", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           prompt: page.prompt,
-          imageBase64: data.image,
-          imageUrl: data.imageUrl || "",
-          mimeType: data.mimeType || "image/png",
-          generatedAt: new Date().toISOString(),
-          fallback: data.fallback || false,
-        });
+          chapterTitle: `Page ${page.pageNumber}`,
+          projectId: project.id,
+          characters: imagePlan.characters || [],
+          style: imagePlan.style || "",
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        setPageImageMessage(
+          data.message ||
+            `Page ${page.pageNumber} illustration could not be regenerated.`
+        );
+        return;
       }
 
-      savePageImages(results);
+      const regeneratedImage: PageImage = {
+        projectId: project.id,
+        pageNumber: page.pageNumber,
+        text: page.text,
+        prompt: page.prompt,
+        imageBase64: data.image,
+        imageUrl: data.imageUrl || "",
+        mimeType: data.mimeType || "image/png",
+        generatedAt: new Date().toISOString(),
+        fallback: data.fallback || false,
+      };
 
-      setPageImageMessage(
-        results.length > 0
-          ? "Page illustrations generated successfully."
-          : "No page illustrations were generated."
-      );
+      const updatedImages = [
+        ...pageImages.filter((img) => img.pageNumber !== page.pageNumber),
+        regeneratedImage,
+      ].sort((a, b) => a.pageNumber - b.pageNumber);
+
+      savePageImages(updatedImages);
+
+      setPageImageMessage(`Page ${page.pageNumber} illustration regenerated successfully.`);
     } catch (error) {
       setPageImageMessage(
         error instanceof Error
           ? error.message
-          : "Page illustration generation failed."
+          : `Page ${page.pageNumber} illustration regeneration failed.`
       );
     } finally {
       setPageImageLoading(false);
@@ -1173,6 +1264,19 @@ if (loading) {
 const manuscriptReady = childrenBookMode
   ? !!pages && pages.pages.length > 0
   : !!generatedChapters && generatedChapters.chapters.length > 0;
+
+  const nextPageToIllustrate = pages?.pages.find(
+    (page) => !pageImages.some((img) => img.pageNumber === page.pageNumber)
+  );
+
+  const generatedPageIllustrationCount = pages
+    ? pages.pages.filter((page) =>
+        pageImages.some((img) => img.pageNumber === page.pageNumber)
+      ).length
+    : 0;
+
+  const totalPageIllustrationCount = pages?.pages.length || 0;
+
   const limits = currentLimits();
   const limitLabel =
     limits === "unlimited" ? "Unlimited AI usage" : "Limited AI usage";
@@ -1693,19 +1797,32 @@ const manuscriptReady = childrenBookMode
                             Page Illustrations
                           </h3>
                           <p className="text-gray-300 mt-2">
-                            Generate artwork for each story page using the saved
-                            character sheet and visual style.
+                            Generate one page illustration at a time. This
+                            prevents long waits, failed requests, and makes it
+                            easier to review each page before moving forward.
+                          </p>
+                          <p className="text-sm text-yellow-200 mt-3">
+                            {generatedPageIllustrationCount} of{" "}
+                            {totalPageIllustrationCount} page illustrations
+                            generated.
                           </p>
                         </div>
 
                         <button
                           onClick={handleGeneratePageImages}
-                          disabled={pageImageLoading || !pages || !imagePlan}
+                          disabled={
+                            pageImageLoading ||
+                            !pages ||
+                            !imagePlan ||
+                            !nextPageToIllustrate
+                          }
                           className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                           {pageImageLoading
                             ? "Generating..."
-                            : "Generate Page Illustrations"}
+                            : nextPageToIllustrate
+                            ? `Generate Page ${nextPageToIllustrate.pageNumber} Illustration`
+                            : "All Page Illustrations Generated"}
                         </button>
                       </div>
 
@@ -1726,11 +1843,41 @@ const manuscriptReady = childrenBookMode
                               key={page.pageNumber}
                               className="rounded-2xl border border-yellow-500/20 bg-black/40 p-5"
                             >
-                              <p className="text-yellow-400 font-semibold mb-2">
-                                Page {page.pageNumber}
-                              </p>
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                                <p className="text-yellow-400 font-semibold">
+                                  Page {page.pageNumber}
+                                </p>
 
-                              {matchingImage && (
+                                {matchingImage ? (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRegeneratePageImage(page)
+                                    }
+                                    disabled={pageImageLoading}
+                                    className="border border-yellow-400 text-yellow-300 px-4 py-2 rounded-lg font-semibold hover:bg-yellow-400 hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {pageImageLoading
+                                      ? "Please wait..."
+                                      : `Regenerate Page ${page.pageNumber}`}
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      handleRegeneratePageImage(page)
+                                    }
+                                    disabled={pageImageLoading}
+                                    className="bg-yellow-400 text-black px-4 py-2 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {pageImageLoading
+                                      ? "Please wait..."
+                                      : `Generate Page ${page.pageNumber}`}
+                                  </button>
+                                )}
+                              </div>
+
+                              {matchingImage ? (
                                 <div className="w-full aspect-[4/5] overflow-hidden rounded-xl border border-yellow-500/20 bg-black mb-4">
                                   <img
                                     src={
@@ -1741,6 +1888,10 @@ const manuscriptReady = childrenBookMode
                                     alt={`Page ${page.pageNumber}`}
                                     className="w-full h-full object-cover"
                                   />
+                                </div>
+                              ) : (
+                                <div className="w-full aspect-[4/5] rounded-xl border border-dashed border-yellow-500/20 bg-black/40 mb-4 flex items-center justify-center p-6 text-center text-gray-400">
+                                  No illustration generated for this page yet.
                                 </div>
                               )}
 
