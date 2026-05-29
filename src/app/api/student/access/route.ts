@@ -4,8 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-
-    const { parentEmail } = body;
+    const parentEmail = String(body.parentEmail || "").trim().toLowerCase();
 
     if (!parentEmail) {
       return NextResponse.json(
@@ -20,7 +19,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabaseAdmin
       .from("esa_requests")
-      .select("student_access, invoice_status")
+      .select("*")
       .eq("parent_email", parentEmail)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -37,7 +36,36 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       studentAccess: Boolean(data.student_access),
-      invoiceStatus: data.invoice_status,
+      invoiceStatus: data.invoice_status || "",
+
+      id: data.id || "",
+
+      parentName: data.parent_name || "",
+      parentEmail: data.parent_email || "",
+
+      studentName: data.student_name || "",
+      studentGrade: data.student_grade || "",
+
+      packageChoice: data.package_choice || "Starter",
+      packagePrice: data.package_price || "",
+
+      invoiceNumber: data.invoice_number || "",
+
+      bookTitle: data.project_idea || "",
+      topic: data.project_idea || "",
+      projectIdea: data.project_idea || "",
+
+      bookDescription: data.project_idea || "",
+      educationalPurpose:
+        "Student writing, literacy, creative expression, book development, and structured educational projects.",
+
+      bookType: "Children's Book",
+      audience: "Children (5–8)",
+      tone: "Fun, Educational, Inspirational",
+      imagesNeeded: "AI Illustrations on Every Page",
+
+      pageCount: "",
+      createdAt: data.created_at || "",
     });
   } catch (error) {
     return NextResponse.json(

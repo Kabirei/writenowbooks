@@ -15,9 +15,14 @@ type StudentProject = {
 
 type ESARequest = {
   parentEmail?: string;
+  parentName?: string;
   studentName?: string;
+  studentGrade?: string;
   packageChoice?: string;
   packagePrice?: string;
+  invoiceNumber?: string;
+  invoiceStatus?: string;
+  projectIdea?: string;
   topic?: string;
   bookTitle?: string;
   pageCount?: string;
@@ -76,34 +81,57 @@ export default function Page() {
 
         setStudentAccess(Boolean(access.success && access.studentAccess));
 
-        const updatedESARequest = {
+        const realProjectIdea =
+          access.projectIdea ||
+          access.topic ||
+          access.bookTitle ||
+          parsed.projectIdea ||
+          parsed.topic ||
+          parsed.bookTitle ||
+          "";
+
+        const updatedESARequest: ESARequest = {
           ...parsed,
-          parentEmail: parsed.parentEmail || access.parentEmail || "",
+
           parentName: access.parentName || parsed.parentName || "",
-          parentPhone: access.parentPhone || parsed.parentPhone || "",
+          parentEmail: access.parentEmail || parsed.parentEmail || "",
+
           studentName: access.studentName || parsed.studentName || "",
-          studentEmail: access.studentEmail || parsed.studentEmail || "",
           studentGrade: access.studentGrade || parsed.studentGrade || "",
+
           packageChoice:
-            access.packageChoice || parsed.packageChoice || "Premium Longform",
+            access.packageChoice || parsed.packageChoice || "Starter",
           packagePrice: access.packagePrice || parsed.packagePrice || "",
+
           invoiceNumber: access.invoiceNumber || parsed.invoiceNumber || "",
           invoiceStatus: access.invoiceStatus || parsed.invoiceStatus || "",
-          topic: access.topic || access.bookTitle || parsed.topic || "",
-          bookTitle: access.bookTitle || access.topic || parsed.bookTitle || "",
+
+          projectIdea: realProjectIdea,
+          topic: realProjectIdea,
+          bookTitle: realProjectIdea,
+
           pageCount: access.pageCount || parsed.pageCount || "",
-          bookType: access.bookType || parsed.bookType || "",
-          audience: access.audience || parsed.audience || "",
-          tone: access.tone || parsed.tone || "",
-          imagesNeeded: access.imagesNeeded || parsed.imagesNeeded || "",
+          bookType:
+            access.bookType || parsed.bookType || "Children's Book",
+          audience:
+            access.audience || parsed.audience || "Children (5–8)",
+          tone:
+            access.tone || parsed.tone || "Fun, Educational, Inspirational",
+          imagesNeeded:
+            access.imagesNeeded ||
+            parsed.imagesNeeded ||
+            "AI Illustrations on Every Page",
+
           bookDescription:
             access.bookDescription ||
-            access.description ||
-            access.educationalPurpose ||
             parsed.bookDescription ||
+            realProjectIdea ||
             "",
+
           educationalPurpose:
-            access.educationalPurpose || parsed.educationalPurpose || "",
+            access.educationalPurpose ||
+            parsed.educationalPurpose ||
+            "Student writing, literacy, creative expression, book development, and structured educational projects.",
         };
 
         localStorage.setItem("esaRequest", JSON.stringify(updatedESARequest));
@@ -126,14 +154,21 @@ export default function Page() {
     if (esaRequest) {
       const starterForm = {
         bookType: esaRequest.bookType || "Children's Book",
-        topic: esaRequest.topic || esaRequest.bookTitle || "",
+        topic:
+          esaRequest.projectIdea ||
+          esaRequest.topic ||
+          esaRequest.bookTitle ||
+          "",
         pageCount: esaRequest.pageCount || "",
-        tone: esaRequest.tone || "",
-        audience: esaRequest.audience || "",
+        tone: esaRequest.tone || "Fun, Educational, Inspirational",
+        audience: esaRequest.audience || "Children (5–8)",
         authorName: esaRequest.studentName || "",
-        imagesNeeded: esaRequest.imagesNeeded || "",
+        imagesNeeded:
+          esaRequest.imagesNeeded || "AI Illustrations on Every Page",
         extraInstructions:
           esaRequest.bookDescription ||
+          esaRequest.projectIdea ||
+          esaRequest.topic ||
           esaRequest.educationalPurpose ||
           "",
         accessType: "ESA Funded",
@@ -239,18 +274,19 @@ export default function Page() {
                 </p>
 
                 <p className="text-gray-300 mb-2">
-                  Student: {esaRequest?.studentName || "Student"}
+                  Student: {esaRequest?.studentName || "Not provided"}
                 </p>
 
                 <p className="text-gray-300 mb-2">
-                  Package: {esaRequest?.packageChoice || "Premium Longform"}
+                  Package: {esaRequest?.packageChoice || "Starter"}
                 </p>
 
                 <p className="text-gray-300 mb-6">
                   Book Idea:{" "}
-                  {esaRequest?.topic ||
+                  {esaRequest?.projectIdea ||
+                    esaRequest?.topic ||
                     esaRequest?.bookTitle ||
-                    "Ready to begin"}
+                    "Not provided"}
                 </p>
 
                 <button
