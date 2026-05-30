@@ -20,6 +20,7 @@ import {
 
 type BookFormData = {
   bookType: string;
+  bookTitle?: string;
   topic: string;
   pageCount: string;
   tone: string;
@@ -75,6 +76,7 @@ type ProjectChapter = {
   chapters: {
     title: string;
     content: string;
+    expanded?: boolean;
   }[];
 };
 
@@ -83,6 +85,9 @@ type ImagePlan = {
   generatedAt: string;
   style: string;
   coverPrompt: string;
+  titlePlacement?: string;
+  authorPlacement?: string;
+  textSafeArea?: string;
   characters: {
     name: string;
     description: string;
@@ -181,6 +186,7 @@ const normalizeBookData = (bookData: any): BookFormData => {
 
   return {
     bookType: bookData?.bookType || "",
+    bookTitle: bookData?.bookTitle || bookData?.title || "",
     topic: bookData?.topic || "",
     pageCount: bookData?.pageCount || "",
     tone: bookData?.tone || "",
@@ -771,11 +777,26 @@ const isChildrenBookProject = () => {
 
   const handleGenerateChapters = async () => {
     if (!project || !outline) return;
-    if (blockIfLimitReached("chapters")) return;
+
+    const existingChapters = generatedChapters?.chapters || [];
+
+    if (existingChapters.length >= outline.chapters.length) {
+      setChapterMessage("All outline chapters have already been generated.");
+      return;
+    }
+
+    if (existingChapters.length === 0 && blockIfLimitReached("chapters")) {
+      return;
+    }
+
+    const nextChapterIndex = existingChapters.length;
+    const nextChapterTitle = outline.chapters[nextChapterIndex];
 
     try {
       setChapterLoading(true);
-      setChapterMessage("Generating chapters with AI...");
+      setChapterMessage(
+        `Generating Chapter ${nextChapterIndex + 1}: ${nextChapterTitle}...`
+      );
       setExpandMessage("");
 
       const response = await fetch("/api/ai/generate-chapters", {
@@ -784,7 +805,10 @@ const isChildrenBookProject = () => {
         body: JSON.stringify({
           bookData: project.bookData,
           outlineTitle: outline.title,
-          chapters: outline.chapters,
+          chapterTitle: nextChapterTitle,
+          chapterIndex: nextChapterIndex,
+          totalChapters: outline.chapters.length,
+          existingChapters,
         }),
       });
 
@@ -795,14 +819,43 @@ const isChildrenBookProject = () => {
         return;
       }
 
+      const generatedChapter = Array.isArray(data.chapters)
+        ? data.chapters[0]
+        : data.chapter;
+
+      if (!generatedChapter?.title || !generatedChapter?.content) {
+        setChapterMessage("AI chapter generation returned no usable chapter.");
+        return;
+      }
+
+      const updatedChapters = [
+        ...existingChapters,
+        {
+          title: generatedChapter.title,
+          content: generatedChapter.content,
+          expanded: false,
+        },
+      ];
+
       await saveChapters({
         projectId: project.id,
         generatedAt: new Date().toISOString(),
-        chapters: data.chapters,
+        chapters: updatedChapters,
       });
 
-      incrementUsage("chapters");
-      setChapterMessage("AI chapters generated and saved successfully.");
+      if (existingChapters.length === 0) {
+        incrementUsage("chapters");
+      }
+
+      const remainingCount = outline.chapters.length - updatedChapters.length;
+
+      setChapterMessage(
+        remainingCount > 0
+          ? `Chapter ${nextChapterIndex + 1} generated successfully. ${remainingCount} chapter${
+              remainingCount === 1 ? "" : "s"
+            } remaining.`
+          : "All chapters have been generated successfully."
+      );
     } catch (error) {
       setChapterMessage(
         error instanceof Error ? error.message : "Unexpected AI chapter error."
@@ -814,18 +867,42 @@ const isChildrenBookProject = () => {
 
   const handleExpandChapters = async () => {
     if (!project || !generatedChapters) return;
-    if (blockIfLimitReached("expand")) return;
+
+    const currentChapters = generatedChapters.chapters || [];
+    const nextChapterIndex = currentChapters.findIndex(
+      (chapter) => !chapter.expanded
+    );
+
+    if (nextChapterIndex === -1) {
+      setExpandMessage("All generated chapters have already been expanded.");
+      return;
+    }
+
+    if (
+      !currentChapters.some((chapter) => chapter.expanded) &&
+      blockIfLimitReached("expand")
+    ) {
+      return;
+    }
+
+    const chapterToExpand = currentChapters[nextChapterIndex];
 
     try {
       setExpandLoading(true);
-      setExpandMessage("Expanding chapters with AI...");
+      setExpandMessage(
+        `Expanding Chapter ${nextChapterIndex + 1}: ${chapterToExpand.title}...`
+      );
 
       const response = await fetch("/api/ai/expand-chapters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           bookData: project.bookData,
-          chapters: generatedChapters.chapters,
+          chapter: chapterToExpand,
+          chapterIndex: nextChapterIndex,
+          totalChapters: currentChapters.length,
+          previousChapters: currentChapters.slice(0, nextChapterIndex),
+          followingChapters: currentChapters.slice(nextChapterIndex + 1),
         }),
       });
 
@@ -836,14 +913,46 @@ const isChildrenBookProject = () => {
         return;
       }
 
+      const expandedChapter = Array.isArray(data.chapters)
+        ? data.chapters[0]
+        : data.chapter;
+
+      if (!expandedChapter?.content) {
+        setExpandMessage("AI chapter expansion returned no usable content.");
+        return;
+      }
+
+      const updatedChapters = currentChapters.map((chapter, index) =>
+        index === nextChapterIndex
+          ? {
+              title: expandedChapter.title || chapter.title,
+              content: expandedChapter.content,
+              expanded: true,
+            }
+          : chapter
+      );
+
       await saveChapters({
         projectId: project.id,
         generatedAt: new Date().toISOString(),
-        chapters: data.chapters,
+        chapters: updatedChapters,
       });
 
-      incrementUsage("expand");
-      setExpandMessage("AI chapters expanded and saved successfully.");
+      if (!currentChapters.some((chapter) => chapter.expanded)) {
+        incrementUsage("expand");
+      }
+
+      const remainingCount = updatedChapters.filter(
+        (chapter) => !chapter.expanded
+      ).length;
+
+      setExpandMessage(
+        remainingCount > 0
+          ? `Chapter ${nextChapterIndex + 1} expanded successfully. ${remainingCount} chapter${
+              remainingCount === 1 ? "" : "s"
+            } still need expansion.`
+          : "All generated chapters have been expanded successfully."
+      );
     } catch (error) {
       setExpandMessage(
         error instanceof Error ? error.message : "Unexpected AI expansion error."
@@ -852,6 +961,7 @@ const isChildrenBookProject = () => {
       setExpandLoading(false);
     }
   };
+
 
   const handleGeneratePages = async () => {
     if (!project) return;
@@ -1093,6 +1203,11 @@ const isChildrenBookProject = () => {
       generatedAt: new Date().toISOString(),
       style: data.plan.style || "Not provided",
       coverPrompt: data.plan.coverPrompt || "Not provided",
+      titlePlacement: data.plan.titlePlacement || "top center",
+      authorPlacement: data.plan.authorPlacement || "bottom center",
+      textSafeArea:
+        data.plan.textSafeArea ||
+        "Leave open space at the top for the title and near the bottom for the author name without covering faces or important artwork.",
       characters: Array.isArray(data.plan.characters) ? data.plan.characters : [],
       chapterImages: Array.isArray(data.plan.chapterImages)
         ? data.plan.chapterImages
@@ -1129,6 +1244,16 @@ const handleGenerateCoverImage = async () => {
       body: JSON.stringify({
         prompt: imagePlan.coverPrompt,
         projectId: project.id,
+        title:
+          project.bookData?.bookTitle ||
+          project.bookData?.topic ||
+          "Book Title",
+        authorName: project.bookData?.authorName || "Author",
+        titlePlacement: imagePlan.titlePlacement || "top center",
+        authorPlacement: imagePlan.authorPlacement || "bottom center",
+        textSafeArea:
+          imagePlan.textSafeArea ||
+          "Leave clean open space for the title and author name without covering faces or important artwork.",
         style: imagePlan.style,
         characters: imagePlan.characters,
       }),
@@ -1264,6 +1389,23 @@ if (loading) {
 const manuscriptReady = childrenBookMode
   ? !!pages && pages.pages.length > 0
   : !!generatedChapters && generatedChapters.chapters.length > 0;
+
+  const generatedRegularChapterCount = generatedChapters?.chapters.length || 0;
+  const totalRegularChapterCount = outline?.chapters.length || 0;
+  const nextChapterTitle =
+    outline && generatedRegularChapterCount < outline.chapters.length
+      ? outline.chapters[generatedRegularChapterCount]
+      : "";
+
+  const nextChapterToExpandIndex = generatedChapters?.chapters.findIndex(
+    (chapter) => !chapter.expanded
+  );
+  const nextChapterToExpand =
+    generatedChapters &&
+    typeof nextChapterToExpandIndex === "number" &&
+    nextChapterToExpandIndex >= 0
+      ? generatedChapters.chapters[nextChapterToExpandIndex]
+      : null;
 
   const nextPageToIllustrate = pages?.pages.find(
     (page) => !pageImages.some((img) => img.pageNumber === page.pageNumber)
@@ -1430,6 +1572,15 @@ const manuscriptReady = childrenBookMode
                   </p>
                 </div>
               </div>
+
+              {project.bookData?.bookTitle && (
+                <div className="mt-6">
+                  <p className="text-sm text-gray-400 mb-2">Book Title</p>
+                  <div className="rounded-xl border border-gray-800 bg-black/40 p-4 text-gray-200">
+                    {project.bookData.bookTitle}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-6">
                 <p className="text-sm text-gray-400 mb-2">
@@ -1604,20 +1755,42 @@ const manuscriptReady = childrenBookMode
                     <div className="flex flex-col sm:flex-row gap-3">
                       <button
                         onClick={handleGenerateChapters}
-                        disabled={!outline || chapterLoading}
+                        disabled={
+                          !outline ||
+                          chapterLoading ||
+                          generatedRegularChapterCount >= totalRegularChapterCount
+                        }
                         className="bg-white text-black px-5 py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {chapterLoading
                           ? "Generating..."
-                          : "Generate AI Chapters"}
+                          : !outline
+                          ? "Generate Outline First"
+                          : generatedRegularChapterCount >= totalRegularChapterCount
+                          ? "All Chapters Generated"
+                          : `Generate Chapter ${
+                              generatedRegularChapterCount + 1
+                            }`}
                       </button>
 
                       <button
                         onClick={handleExpandChapters}
-                        disabled={!generatedChapters || expandLoading}
+                        disabled={
+                          !generatedChapters ||
+                          expandLoading ||
+                          !nextChapterToExpand
+                        }
                         className="bg-yellow-400 text-black px-5 py-3 rounded-lg font-semibold hover:bg-yellow-300 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {expandLoading ? "Expanding..." : "Expand AI Chapters"}
+                        {expandLoading
+                          ? "Expanding..."
+                          : !generatedChapters
+                          ? "Generate Chapters First"
+                          : nextChapterToExpand
+                          ? `Expand Chapter ${
+                              (nextChapterToExpandIndex || 0) + 1
+                            }`
+                          : "All Chapters Expanded"}
                       </button>
                     </div>
                   </div>

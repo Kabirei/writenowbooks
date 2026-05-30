@@ -3,6 +3,7 @@ import OpenAI from "openai";
 
 type BookFormData = {
   bookType?: string;
+  bookTitle?: string;
   topic?: string;
   pageCount?: string;
   tone?: string;
@@ -36,29 +37,41 @@ export async function POST(request: Request) {
     const bookData: BookFormData = body.bookData || {};
     const chapters: string[] = body.chapters || [];
 
+    const bookTitle =
+      bookData.bookTitle || bookData.topic || "Untitled Book";
+
     const isChildrenBook =
       String(bookData.bookType || "").toLowerCase().includes("children") ||
       String(bookData.audience || "").toLowerCase().includes("children") ||
+      String(bookData.audience || "").toLowerCase().includes("toddlers") ||
       String(bookData.imagesNeeded || "").toLowerCase().includes("every page");
 
     const client = new OpenAI({ apiKey });
 
     const prompt = `
 Create a professional ${
-      isChildrenBook ? "children's book character sheet and illustration plan" : "book illustration plan"
+      isChildrenBook
+        ? "children's book character sheet and illustration plan"
+        : "book illustration plan"
     }.
 
 BOOK INFORMATION:
+Book Title: ${bookTitle}
 Book Type: ${bookData.bookType || "Not provided"}
 Topic / Book Idea: ${bookData.topic || "Not provided"}
 Target Audience: ${bookData.audience || "Not provided"}
 Tone: ${bookData.tone || "Not provided"}
+Author Name: ${bookData.authorName || "Not provided"}
 Images Needed: ${bookData.imagesNeeded || "Not specified"}
 Extra Instructions:
 ${bookData.extraInstructions || "None provided"}
 
 CHAPTERS OR STORY SECTIONS:
-${chapters.length ? chapters.map((c, i) => `${i + 1}. ${c}`).join("\n") : "No chapters provided."}
+${
+  chapters.length
+    ? chapters.map((c, i) => `${i + 1}. ${c}`).join("\n")
+    : "No chapters provided."
+}
 
 CRITICAL CHARACTER LOCK RULES:
 - Create locked character profiles.
@@ -73,10 +86,19 @@ STYLE LOCK RULES:
 - Keep the same color palette, lighting, mood, and illustration style.
 - The style must be child-friendly, polished, and suitable for publishing.
 
+COVER TEXT PLACEMENT RULES:
+- The cover must reserve clear visual space for the book title and author name.
+- Recommend a title placement that fits the concept, usually top center, upper third, or centered above the main subject.
+- Recommend an author placement that fits the concept, usually bottom center or lower third.
+- The title should be clearly readable, professional, and not cover faces or important artwork.
+- The author name should be smaller than the title and also readable.
+- The cover prompt must describe open space for title and author text.
+
 PROMPT RULES:
+- Interior/page image prompts should NOT include text inside images.
+- The cover prompt SHOULD include instruction to leave space for the title and author name.
 - Every image prompt must include the locked character description when that character appears.
 - Every image prompt must include the style lock.
-- No text inside images.
 - No watermarks.
 - No logos.
 - Keep hands, faces, and proportions clean.
@@ -89,7 +111,10 @@ Return this exact JSON shape:
 
 {
   "style": "Locked overall art style, color palette, mood, and illustration style.",
-  "coverPrompt": "Full cover image prompt using the locked style and locked character descriptions.",
+  "coverPrompt": "Full cover image prompt using the locked style and locked character descriptions. Include clear open space for the book title and author name.",
+  "titlePlacement": "top center",
+  "authorPlacement": "bottom center",
+  "textSafeArea": "Leave open space at the top for the title and near the bottom for author name. Do not place text over faces, characters, or important artwork.",
   "characters": [
     {
       "name": "Character name",
@@ -99,7 +124,7 @@ Return this exact JSON shape:
   "chapterImages": [
     {
       "chapter": "chapter or page title",
-      "prompt": "Full image prompt using locked style and locked character profiles."
+      "prompt": "Full image prompt using locked style and locked character profiles. No text inside the image."
     }
   ]
 }
@@ -117,7 +142,14 @@ Return this exact JSON shape:
       style:
         parsed.style ||
         "Bright, polished children's book illustration style with consistent characters, warm lighting, expressive faces, clean backgrounds, and a friendly color palette.",
-      coverPrompt: parsed.coverPrompt || "",
+      coverPrompt:
+        parsed.coverPrompt ||
+        `Professional book cover for ${bookTitle}. Leave clean open space for the title and author name without covering important artwork.`,
+      titlePlacement: parsed.titlePlacement || "top center",
+      authorPlacement: parsed.authorPlacement || "bottom center",
+      textSafeArea:
+        parsed.textSafeArea ||
+        "Leave open space at the top for the title and near the bottom for author name. Do not place text over faces, characters, or important artwork.",
       characters: Array.isArray(parsed.characters) ? parsed.characters : [],
       chapterImages: Array.isArray(parsed.chapterImages)
         ? parsed.chapterImages

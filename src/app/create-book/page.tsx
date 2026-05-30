@@ -12,6 +12,7 @@ function CreateBookContent() {
   const isESA = searchParams.get("esa") === "true";
 
   const [bookType, setBookType] = useState("");
+  const [bookTitle, setBookTitle] = useState("");
   const [topic, setTopic] = useState("");
   const [pageCount, setPageCount] = useState("");
   const [tone, setTone] = useState("");
@@ -139,7 +140,8 @@ function CreateBookContent() {
       const parsed = JSON.parse(savedForm);
 
       setBookType(parsed.bookType || "");
-      setTopic(parsed.topic || "");
+      setBookTitle(parsed.bookTitle || parsed.topic || "");
+      setTopic(parsed.topic || parsed.bookDescription || parsed.projectIdea || "");
       setPageCount(parsed.pageCount || "");
       setTone(parsed.tone || "");
       setAudience(parsed.audience || "");
@@ -328,6 +330,7 @@ function CreateBookContent() {
 
     const formData = {
       bookType,
+      bookTitle,
       topic,
       pageCount,
       tone,
@@ -533,19 +536,38 @@ function CreateBookContent() {
 
               <div>
                 <label className="block mb-2 font-medium text-xl">
-                  Book Title or Main Idea
+                  Book Title
+                </label>
+
+                <input
+                  type="text"
+                  value={bookTitle}
+                  onChange={(e) => setBookTitle(e.target.value)}
+                  placeholder="Example: Kaloni Goes Fishing"
+                  className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white"
+                />
+
+                <p className="text-sm text-gray-400 mt-2">
+                  This is the exact title that should appear on the book cover,
+                  manuscript, and publishing files.
+                </p>
+              </div>
+
+              <div>
+                <label className="block mb-2 font-medium text-xl">
+                  Book Topic / Main Idea
                 </label>
 
                 <textarea
                   value={topic}
                   onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Enter your book title or briefly describe your book idea"
+                  placeholder="Example: A child learns patience and joy while fishing with family."
                   className="w-full rounded-lg bg-black border border-gray-700 px-4 py-4 text-white min-h-[130px]"
                 />
 
                 <p className="text-sm text-gray-400 mt-2">
-                  This is the main creative field. The guided options below help
-                  the AI understand the rest.
+                  This tells the AI what the book is about. Keep the title above
+                  short and clear, then explain the story or topic here.
                 </p>
               </div>
 
@@ -749,6 +771,7 @@ function CreateBookContent() {
             </h2>
 
             <ul className="space-y-4 text-gray-300 mb-8">
+              <li>• Book title: {bookTitle || "Not selected yet"}</li>
               <li>• Book type: {bookType || "Not selected yet"}</li>
               <li>• Page range: {pageCount || "Not selected yet"}</li>
               <li>• Tone: {tone || "Not selected yet"}</li>
