@@ -1145,11 +1145,11 @@ Written by ${author}.`;
         : Math.min(150, measurements.usableWidth);
 
     const imageHeight =
-      layout === "cover"
-        ? imageWidth * 1.5
-        : layout === "childPage"
-        ? imageWidth * 1.1
-        : imageWidth;
+  layout === "cover"
+    ? imageWidth * 1.5
+    : layout === "childPage"
+    ? imageWidth * 1.35
+    : imageWidth;
 
     const x = (pageWidth - imageWidth) / 2;
 
@@ -1621,50 +1621,116 @@ const addDedicationPagePDF = (doc: jsPDF) => {
   };
 
   const createChildrenBookPDFBlob = async () => {
-    if (!project || !pages || pages.pages.length === 0) {
-      return createStandardPDFBlob();
-    }
+  if (!project || !pages || pages.pages.length === 0) {
+    return createStandardPDFBlob();
+  }
 
-    const doc = createPdfDocument();
-    const measurements = getPageMeasurements(doc);
+  const oldTrimSize = publishingSettings.trimSize;
 
-    await addTitlePagePDF(doc);
-    addCopyrightPagePDF(doc);
-    addDedicationPagePDF(doc);
+  if (publishingSettings.trimSize !== "8.5x11") {
+    updatePublishingSettings("trimSize", "8.5x11");
+  }
 
-    for (const page of pages.pages) {
-      doc.addPage();
+  const doc = new jsPDF({
+    unit: "mm",
+    format: [215.9, 279.4],
+  });
 
-      const pageImage = findPageImage(page.pageNumber);
-      let y = measurements.marginTop;
+  await addTitlePagePDF(doc);
+  addCopyrightPagePDF(doc);
+  addDedicationPagePDF(doc);
 
-      if (pageImage) {
-        y = await addImageToPDF(doc, pageImage, y, "childPage");
+  for (const page of pages.pages) {
+    doc.addPage();
+
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    const outerMargin = 12;
+    const imageTop = 14;
+    const imageWidth = pageWidth - outerMargin * 2;
+    const imageHeight = pageHeight * 0.72;
+    const imageX = outerMargin;
+    const imageY = imageTop;
+
+    const textTop = imageY + imageHeight + 8;
+    const textBoxHeight = pageHeight - textTop - 18;
+    const textMaxWidth = pageWidth - outerMargin * 2;
+
+    const pageImage = findPageImage(page.pageNumber);
+
+    if (pageImage) {
+      try {
+        const imageSource = await imageToDataUrl(pageImage);
+
+        if (imageSource) {
+          doc.addImage(
+            imageSource,
+            getImageFormat(pageImage.mimeType),
+            imageX,
+            imageY,
+            imageWidth,
+            imageHeight
+          );
+        }
+      } catch {
+        doc.setFont("Times", "italic");
+        doc.setFontSize(12);
+        doc.text(
+          "[Illustration could not be embedded]",
+          pageWidth / 2,
+          imageY + imageHeight / 2,
+          { align: "center" }
+        );
       }
-
-      doc.setFont("Times", "bold");
-      doc.setFontSize(
-        publishingSettings.trimSize === "6x9" ? 13 : 18
+    } else {
+      doc.setDrawColor(180);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(imageX, imageY, imageWidth, imageHeight, 4, 4);
+      doc.setFont("Times", "italic");
+      doc.setFontSize(12);
+      doc.text(
+        "[Illustration placeholder]",
+        pageWidth / 2,
+        imageY + imageHeight / 2,
+        { align: "center" }
       );
-
-      addWrappedText(doc, page.text, {
-        x: measurements.marginLeft,
-        y,
-        maxWidth: measurements.usableWidth,
-        lineHeight:
-          publishingSettings.trimSize === "6x9" ? 7.2 : 9.5,
-        bottomLimit: measurements.bottomLimit,
-        bold: true,
-        align: "center",
-      });
     }
 
-    addPageNumbers(doc);
+    const textLength = page.text.trim().length;
 
-    markExportChecklistReady("pdf");
+    const fontSize =
+      textLength <= 90 ? 28 : textLength <= 160 ? 26 : 24;
 
-    return doc.output("blob");
-  };
+    const lineHeight =
+      fontSize === 28 ? 11 : fontSize === 26 ? 10.2 : 9.5;
+
+    doc.setFont("Times", "bold");
+    doc.setFontSize(fontSize);
+
+    const wrappedLines = doc.splitTextToSize(page.text, textMaxWidth);
+
+    const totalTextHeight = wrappedLines.length * lineHeight;
+
+    let textY =
+      textTop + Math.max(0, (textBoxHeight - totalTextHeight) / 2) + 7;
+
+    wrappedLines.forEach((line: string) => {
+      doc.text(line, pageWidth / 2, textY, { align: "center" });
+      textY += lineHeight;
+    });
+  }
+
+  addPageNumbers(doc);
+
+  markExportChecklistReady("pdf");
+
+  if (oldTrimSize !== "8.5x11") {
+    updatePublishingSettings("trimSize", oldTrimSize);
+  }
+
+  return doc.output("blob");
+};
 
   const createCoverWrapPDFBlob = async () => {
     const trim = getTrimSizeMM();

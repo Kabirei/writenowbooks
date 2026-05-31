@@ -17,6 +17,7 @@ type ChapterDraft = {
   title: string;
   content: string;
   expanded?: boolean;
+  targetWords?: number;
 };
 
 function normalizeChapterContent(content: string) {
@@ -31,7 +32,6 @@ function normalizeChapterContent(content: string) {
 
 function removeRepeatedTitle(content: string, title: string, index: number) {
   let cleaned = normalizeChapterContent(content);
-
   const escapedTitle = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   cleaned = cleaned
@@ -45,7 +45,6 @@ function removeRepeatedTitle(content: string, title: string, index: number) {
 
 function extractJsonObject(text: string) {
   const cleaned = normalizeChapterContent(text);
-
   const firstBrace = cleaned.indexOf("{");
   const lastBrace = cleaned.lastIndexOf("}");
 
@@ -56,10 +55,32 @@ function extractJsonObject(text: string) {
   return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
 }
 
+function getTotalTargetWords(pageCount?: string) {
+  const value = String(pageCount || "").toLowerCase();
+
+  if (value.includes("300")) return 110000;
+  if (value.includes("150") && value.includes("300")) return 85000;
+  if (value.includes("75") && value.includes("150")) return 52000;
+  if (value.includes("40") && value.includes("75")) return 30000;
+  if (value.includes("20") && value.includes("40")) return 17000;
+  if (value.includes("10") && value.includes("20")) return 8500;
+
+  return 18000;
+}
+
+function getExpandedChapterTarget(pageCount?: string, totalChapters = 1) {
+  const totalWords = getTotalTargetWords(pageCount);
+  const safeChapters = Math.max(1, totalChapters);
+  const target = Math.round(totalWords / safeChapters);
+
+  return Math.max(1400, Math.min(Math.round(target * 1.25), 6000));
+}
+
 function validateExpandedChapter(
   value: unknown,
   originalChapter: ChapterDraft,
-  index: number
+  index: number,
+  targetWords: number
 ): ChapterDraft {
   const data = value as Partial<ChapterDraft>;
 
@@ -70,20 +91,8 @@ function validateExpandedChapter(
     title: originalChapter.title,
     content: removeRepeatedTitle(rawContent, originalChapter.title, index),
     expanded: true,
+    targetWords,
   };
-}
-
-function getExpansionTarget(pageCount?: string) {
-  const normalized = String(pageCount || "").toLowerCase();
-
-  if (normalized.includes("300")) return 5000;
-  if (normalized.includes("150")) return 4200;
-  if (normalized.includes("75")) return 3200;
-  if (normalized.includes("40")) return 2500;
-  if (normalized.includes("20")) return 1800;
-  if (normalized.includes("10")) return 1400;
-
-  return 2200;
 }
 
 async function expandSingleChapter({
@@ -103,7 +112,8 @@ async function expandSingleChapter({
   previousChapters: ChapterDraft[];
   followingChapters: ChapterDraft[];
 }) {
-  const targetWords = getExpansionTarget(bookData.pageCount);
+  const targetWords = getExpandedChapterTarget(bookData.pageCount, totalChapters);
+  const totalTargetWords = getTotalTargetWords(bookData.pageCount);
 
   const prompt = `
 You are expanding one existing book chapter into a deeper, fuller, polished manuscript chapter.
@@ -129,6 +139,7 @@ Book Title: ${bookData.bookTitle || bookData.topic || "Not provided"}
 Book Type: ${bookData.bookType || "Not provided"}
 Book Topic / Main Idea: ${bookData.topic || "Not provided"}
 Estimated Page Count: ${bookData.pageCount || "Not provided"}
+Estimated Total Manuscript Word Goal: about ${totalTargetWords} words
 Tone / Style: ${bookData.tone || "Not provided"}
 Target Audience: ${bookData.audience || "Not provided"}
 Author Name: ${bookData.authorName || "Not provided"}
@@ -155,10 +166,7 @@ FOLLOWING CHAPTER CONTEXT:
 ${
   followingChapters.length
     ? followingChapters
-        .map(
-          (item, index) =>
-            `${chapterIndex + 2 + index}. ${item.title}`
-        )
+        .map((item, index) => `${chapterIndex + 2 + index}. ${item.title}`)
         .join("\n")
     : "None. This is currently the last generated chapter."
 }
@@ -169,10 +177,14 @@ ${chapter.title}
 CURRENT CHAPTER CONTENT:
 ${chapter.content}
 
+EXPANSION LENGTH REQUIREMENT:
+- Expand this chapter toward approximately ${targetWords} words.
+- Do not merely reword the original.
+- Add meaningful depth, examples, transitions, explanations, and stronger development.
+- The expanded chapter should help the full manuscript match the selected page-count range.
+
 EXPANSION RULES:
 - Expand this chapter substantially into a fuller manuscript section.
-- Aim for about ${targetWords} words unless the chapter naturally requires slightly more or less.
-- Add more explanation, examples, details, transitions, and depth.
 - Make sure the content still makes sense in the full book sequence.
 - Keep the same voice, subject, and audience.
 - Preserve the original point of the chapter, but make it richer and more complete.
@@ -185,14 +197,14 @@ EXPANSION RULES:
   const response = await client.responses.create({
     model: "gpt-5.4-mini",
     input: prompt,
-    max_output_tokens: 8000,
+    max_output_tokens: 10000,
   });
 
   const text = response.output_text || "";
 
   try {
     const parsed = extractJsonObject(text);
-    return validateExpandedChapter(parsed, chapter, chapterIndex);
+    return validateExpandedChapter(parsed, chapter, chapterIndex, targetWords);
   } catch {
     const fallbackContent = removeRepeatedTitle(text, chapter.title, chapterIndex);
 
@@ -200,6 +212,7 @@ EXPANSION RULES:
       title: chapter.title,
       content: fallbackContent || chapter.content,
       expanded: true,
+      targetWords,
     };
   }
 }
@@ -210,10 +223,7 @@ export async function POST(request: Request) {
 
     if (!apiKey) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Missing OPENAI_API_KEY in environment variables.",
-        },
+        { success: false, message: "Missing OPENAI_API_KEY in environment variables." },
         { status: 500 }
       );
     }
@@ -222,17 +232,18 @@ export async function POST(request: Request) {
 
     const bookData: BookFormData = body.bookData || {};
     const singleChapter: ChapterDraft | undefined = body.chapter;
-    const chapterIndex: number =
-      typeof body.chapterIndex === "number" ? body.chapterIndex : 0;
+    const chapterIndex: number = typeof body.chapterIndex === "number" ? body.chapterIndex : 0;
     const totalChapters: number =
       typeof body.totalChapters === "number"
         ? body.totalChapters
         : Array.isArray(body.chapters)
         ? body.chapters.length
         : 1;
+
     const previousChapters: ChapterDraft[] = Array.isArray(body.previousChapters)
       ? body.previousChapters
       : [];
+
     const followingChapters: ChapterDraft[] = Array.isArray(body.followingChapters)
       ? body.followingChapters
       : [];
@@ -261,10 +272,7 @@ export async function POST(request: Request) {
 
     if (!Array.isArray(chapters) || chapters.length === 0) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "No chapters were provided to expand.",
-        },
+        { success: false, message: "No chapters were provided to expand." },
         { status: 400 }
       );
     }
@@ -294,9 +302,7 @@ export async function POST(request: Request) {
       {
         success: false,
         message:
-          error instanceof Error
-            ? error.message
-            : "AI chapter expansion failed.",
+          error instanceof Error ? error.message : "AI chapter expansion failed.",
       },
       { status: 500 }
     );

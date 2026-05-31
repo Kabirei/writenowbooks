@@ -17,6 +17,7 @@ type ChapterDraft = {
   title: string;
   content: string;
   expanded?: boolean;
+  targetWords?: number;
 };
 
 function normalizeChapterContent(content: string) {
@@ -30,11 +31,7 @@ function normalizeChapterContent(content: string) {
 }
 
 function extractJsonObject(text: string) {
-  const cleaned = text
-    .replace(/```json/gi, "")
-    .replace(/```/g, "")
-    .trim();
-
+  const cleaned = text.replace(/```json/gi, "").replace(/```/g, "").trim();
   const firstBrace = cleaned.indexOf("{");
   const lastBrace = cleaned.lastIndexOf("}");
 
@@ -45,11 +42,7 @@ function extractJsonObject(text: string) {
   return JSON.parse(cleaned.slice(firstBrace, lastBrace + 1));
 }
 
-function cleanAiText(text: string) {
-  return normalizeChapterContent(text);
-}
-
-function validateChapter(value: unknown, fallbackTitle: string): ChapterDraft {
+function validateChapter(value: unknown, fallbackTitle: string, targetWords: number): ChapterDraft {
   const data = value as Partial<ChapterDraft>;
 
   const title =
@@ -67,20 +60,29 @@ function validateChapter(value: unknown, fallbackTitle: string): ChapterDraft {
     title,
     content: normalizeChapterContent(content),
     expanded: false,
+    targetWords,
   };
 }
 
-function getTargetWordCount(pageCount?: string, totalChapters?: number) {
-  const normalized = String(pageCount || "").toLowerCase();
+function getTotalTargetWords(pageCount?: string) {
+  const value = String(pageCount || "").toLowerCase();
 
-  if (normalized.includes("300")) return totalChapters && totalChapters > 0 ? 3500 : 3000;
-  if (normalized.includes("150")) return totalChapters && totalChapters > 0 ? 2800 : 2400;
-  if (normalized.includes("75")) return totalChapters && totalChapters > 0 ? 2200 : 1800;
-  if (normalized.includes("40")) return totalChapters && totalChapters > 0 ? 1700 : 1400;
-  if (normalized.includes("20")) return totalChapters && totalChapters > 0 ? 1200 : 1000;
-  if (normalized.includes("10")) return totalChapters && totalChapters > 0 ? 900 : 800;
+  if (value.includes("300")) return 110000;
+  if (value.includes("150") && value.includes("300")) return 85000;
+  if (value.includes("75") && value.includes("150")) return 52000;
+  if (value.includes("40") && value.includes("75")) return 30000;
+  if (value.includes("20") && value.includes("40")) return 17000;
+  if (value.includes("10") && value.includes("20")) return 8500;
 
-  return 1200;
+  return 18000;
+}
+
+function getChapterTargetWords(pageCount?: string, totalChapters = 1) {
+  const totalWords = getTotalTargetWords(pageCount);
+  const safeChapters = Math.max(1, totalChapters);
+  const target = Math.round(totalWords / safeChapters);
+
+  return Math.max(900, Math.min(target, 4500));
 }
 
 async function generateSingleChapter({
@@ -100,12 +102,13 @@ async function generateSingleChapter({
   totalChapters: number;
   existingChapters: ChapterDraft[];
 }) {
-  const targetWords = getTargetWordCount(bookData.pageCount, totalChapters);
+  const targetWords = getChapterTargetWords(bookData.pageCount, totalChapters);
+  const totalTargetWords = getTotalTargetWords(bookData.pageCount);
 
   const prompt = `
 You are a professional long-form book writer.
 
-Write ONE complete chapter for a book manuscript.
+Write ONE complete chapter for a polished book manuscript.
 
 Return ONLY valid JSON.
 Do not include markdown.
@@ -124,6 +127,7 @@ Book Title: ${bookData.bookTitle || bookData.topic || "Not provided"}
 Book Type: ${bookData.bookType || "Not provided"}
 Book Topic / Main Idea: ${bookData.topic || "Not provided"}
 Estimated Page Count: ${bookData.pageCount || "Not provided"}
+Estimated Total Manuscript Word Goal: about ${totalTargetWords} words
 Tone / Style: ${bookData.tone || "Not provided"}
 Target Audience: ${bookData.audience || "Not provided"}
 Author Name: ${bookData.authorName || "Not provided"}
@@ -143,23 +147,27 @@ ${
     ? existingChapters
         .map(
           (chapter, index) =>
-            `${index + 1}. ${chapter.title}\nBrief content context: ${chapter.content.slice(
-              0,
-              700
-            )}`
+            `${index + 1}. ${chapter.title}\nBrief content context: ${chapter.content.slice(0, 700)}`
         )
         .join("\n\n")
     : "None yet. This is the first chapter."
 }
 
+CHAPTER LENGTH REQUIREMENT:
+- Aim for approximately ${targetWords} words for this chapter.
+- Do not write a short summary.
+- Do not stop after a few paragraphs.
+- Develop the chapter fully enough to help the full manuscript reach the selected page-count range.
+- If the chapter naturally requires slightly more or less, stay close to the target.
+
 WRITING RULES:
 - Write only Chapter ${chapterIndex + 1}.
 - Do not write other chapters.
 - Do not summarize the chapter; write the actual chapter.
-- Aim for about ${targetWords} words unless the subject requires slightly more or less.
 - Make the chapter detailed, useful, polished, and readable.
 - Use multiple developed paragraphs with smooth transitions.
 - Keep the chapter connected to the book topic and overall outline.
+- Include examples, explanations, practical insight, and depth where appropriate.
 - Avoid shallow filler and generic repetition.
 - Do not use bullet-heavy filler unless the book type clearly requires structured teaching.
 - Do not begin the content by repeating the title.
@@ -170,16 +178,16 @@ WRITING RULES:
   const response = await client.responses.create({
     model: "gpt-5.4-mini",
     input: prompt,
-    max_output_tokens: 7000,
+    max_output_tokens: 9000,
   });
 
   const text = response.output_text || "";
 
   try {
     const parsed = extractJsonObject(text);
-    return validateChapter(parsed, chapterTitle);
+    return validateChapter(parsed, chapterTitle, targetWords);
   } catch {
-    const fallbackContent = cleanAiText(text);
+    const fallbackContent = normalizeChapterContent(text);
 
     if (!fallbackContent) {
       throw new Error(`AI returned no usable content for chapter ${chapterIndex + 1}.`);
@@ -189,6 +197,7 @@ WRITING RULES:
       title: chapterTitle,
       content: fallbackContent,
       expanded: false,
+      targetWords,
     };
   }
 }
@@ -199,10 +208,7 @@ export async function POST(request: Request) {
 
     if (!apiKey) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "Missing OPENAI_API_KEY in environment variables.",
-        },
+        { success: false, message: "Missing OPENAI_API_KEY in environment variables." },
         { status: 500 }
       );
     }
@@ -213,14 +219,14 @@ export async function POST(request: Request) {
     const outlineTitle: string = body.outlineTitle || "Book Outline";
 
     const singleChapterTitle: string | undefined = body.chapterTitle;
-    const chapterIndex: number =
-      typeof body.chapterIndex === "number" ? body.chapterIndex : 0;
+    const chapterIndex: number = typeof body.chapterIndex === "number" ? body.chapterIndex : 0;
     const totalChapters: number =
       typeof body.totalChapters === "number"
         ? body.totalChapters
         : Array.isArray(body.chapters)
         ? body.chapters.length
         : 1;
+
     const existingChapters: ChapterDraft[] = Array.isArray(body.existingChapters)
       ? body.existingChapters
       : [];
@@ -249,10 +255,7 @@ export async function POST(request: Request) {
 
     if (!Array.isArray(chapters) || chapters.length === 0) {
       return NextResponse.json(
-        {
-          success: false,
-          message: "No outline chapters were provided.",
-        },
+        { success: false, message: "No outline chapters were provided." },
         { status: 400 }
       );
     }
@@ -282,9 +285,7 @@ export async function POST(request: Request) {
       {
         success: false,
         message:
-          error instanceof Error
-            ? error.message
-            : "AI chapter generation failed.",
+          error instanceof Error ? error.message : "AI chapter generation failed.",
       },
       { status: 500 }
     );
